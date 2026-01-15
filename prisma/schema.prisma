@@ -1,0 +1,363 @@
+// Prisma schema for Task + Invoice system
+// Prisma v6 + MySQL compatible
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+/**
+ * ===========================
+ * ENUMS
+ * ===========================
+ */
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  CANCELLED
+}
+
+enum GstPricingMode {
+  EXCLUSIVE // prices entered exclude GST, GST added on top
+  INCLUSIVE // prices entered include GST, GST extracted out
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  INVOICED
+}
+
+enum FrequencyType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+/**
+ * ===========================
+ * USER / EMPLOYEE
+ * ===========================
+ */
+
+model User {
+  id       Int     @id @default(autoincrement())
+  name     String
+  email    String  @unique
+  password String
+  role     Role
+  isActive Boolean @default(true)
+
+  resetToken       String?
+  resetTokenExpiry DateTime?
+
+  createdAt DateTime @default(now())
+
+  assignments TaskAssignment[]
+  myCompanies MyCompany[]
+  invoices    Invoice[]
+}
+
+/**
+ * ===========================
+ * CLIENT
+ * ===========================
+ */
+model Client {
+  id   Int    @id @default(autoincrement())
+  code String @unique
+  name String
+
+  email     String?
+  phone     String?
+  gstNumber String?
+
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  stateCode    String? // 🔥 IMPORTANT for GST
+  pincode      String?
+
+  createdAt DateTime @default(now())
+
+  tasks    Task[]
+  invoices Invoice[]
+}
+
+model MyCompany {
+  id           Int     @id @default(autoincrement())
+  ownerId      Int
+  owner        User    @relation(fields: [ownerId], references: [id])
+  code         String  @unique
+  name         String
+  gstin        String? @unique
+  pan          String?
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  pincode      String?
+  phone        String?
+  email        String?
+  logoUrl      String? // optional, used for invoice PDF
+
+  bankName    String?
+  bankAccount String?
+  bankIfsc    String?
+  bankBranch  String?
+
+  sealUrl      String?
+  signatureUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  invoices Invoice[]
+}
+
+// =====================
+// INVOICES
+// =====================
+
+model Invoice {
+  id            Int    @id @default(autoincrement())
+  invoiceNumber String @unique
+
+  clientId Int
+  client   Client @relation(fields: [clientId], references: [id])
+
+  fromCompanyId Int
+  fromCompany   MyCompany @relation(fields: [fromCompanyId], references: [id])
+
+  issueDate DateTime  @default(now())
+  dueDate   DateTime?
+
+  status InvoiceStatus @default(DRAFT)
+
+  // GST settings for THIS invoice
+  gstPercent    Decimal        @default(18.00) @db.Decimal(5, 2)
+  pricingMode   GstPricingMode @default(EXCLUSIVE)
+  isIntraState  Boolean        @default(true) // your case: true => CGST+SGST
+  placeOfSupply String? // optional
+
+  placeOfSupplyState     String?
+  placeOfSupplyStateCode String?
+
+  // Amounts (computed OR manually overridden)
+  subtotal Decimal @default(0) @db.Decimal(12, 2)
+  discount Decimal @default(0) @db.Decimal(12, 2)
+
+  cgstAmount Decimal @default(0) @db.Decimal(12, 2)
+  sgstAmount Decimal @default(0) @db.Decimal(12, 2)
+  igstAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  total Decimal @default(0) @db.Decimal(12, 2)
+
+  // Manual override toggle (you said you'll enter money manually sometimes)
+  isManualTotal Boolean @default(false)
+
+  notes String?
+
+  createdById Int
+  createdBy   User @relation(fields: [createdById], references: [id])
+
+  items     InvoiceItem[]
+  emailLogs InvoiceEmailLog[]
+
+  // --- From Company Snapshot ---
+
+  fromCompanyName      String?
+  fromCompanyAddress   String?
+  fromCompanyGstin     String? 
+  fromCompanyCity     String? 
+  fromCompanyState     String?
+  fromCompanyStateCode String?
+  fromCompanyPhone     String?
+  fromCompanyEmail     String?
+
+  // --- Client Snapshot ---
+  clientName      String?
+  clientGstin     String?
+  clientAddress   String?
+  clientCity      String?
+  clientState     String?
+  clientStateCode String?
+  clientPincode   String?
+  clientPhone     String?
+  clientEmail     String?
+
+  // --- Bank Snapshot ---
+  bankName    String?
+  bankAccount String?
+  bankIfsc    String?
+  bankBranch  String?
+
+  // --- Assets Snapshot ---
+  companySealUrl      String?
+  companySignatureUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InvoiceItem {
+  id        Int     @id @default(autoincrement())
+  invoiceId Int
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  // If this item came from a task
+  taskId      Int?
+  task        Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  hsnSac      String?
+  unit        String?
+  title       String
+  description String?
+  quantity    Int     @default(1)
+  unitPrice   Decimal @default(0) @db.Decimal(12, 2)
+  amount      Decimal @default(0) @db.Decimal(12, 2) // qty * unitPrice
+
+  createdAt DateTime @default(now())
+}
+
+model InvoiceSequence {
+  id        Int    @id @default(autoincrement())
+  companyId Int
+  fy        String
+  month     String
+  counter   Int
+
+  @@unique([companyId, fy, month], name: "companyId_fy_month")
+}
+
+model InvoiceEmailLog {
+  id        Int     @id @default(autoincrement())
+  invoiceId Int
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  toEmail String
+  subject String
+  message String?
+  sentAt  DateTime @default(now())
+  status  String // "SUCCESS" | "FAILED"
+  error   String?
+
+  createdAt DateTime @default(now())
+}
+
+/**
+ * ===========================
+ * TASK
+ * ===========================
+ */
+model Task {
+  id          Int     @id @default(autoincrement())
+  title       String
+  description String?
+
+  /**
+   * ===========================
+   * CLIENT & STATUS
+   * ===========================
+   */
+
+  clientId Int
+  status   TaskStatus @default(PENDING)
+
+  /**
+   * ===========================
+   * RECURRING CONFIG (TEMPLATE)
+   * ===========================
+   */
+
+  isRecurring  Boolean        @default(false)
+  frequency    FrequencyType?
+  interval     Int?
+  startDate    DateTime?
+  endDate      DateTime? // ✅ stop generating after this date (optional)
+  skipWeekends Boolean        @default(false) // ✅ shift Sat/Sun to Monday
+  isPaused     Boolean        @default(false) // ✅ pause recurrence
+  pausedAt     DateTime?
+
+  /**
+   * ===========================
+   * SOFT DELETE
+   * ===========================
+   */
+
+  deletedAt DateTime? // ✅ templates can be soft-deleted; instances remain
+
+  /**
+   * ===========================
+   * RECURRING RELATION
+   * ===========================
+   */
+
+  parentTaskId Int?
+  parentTask   Task?  @relation("RecurringTaskRelation", fields: [parentTaskId], references: [id])
+  childTasks   Task[] @relation("RecurringTaskRelation")
+
+  /**
+   * ===========================
+   * EXECUTION TRACKING
+   * ===========================
+   */
+
+  dueDate     DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  /**
+   * ===========================
+   * RELATIONS
+   * ===========================
+   */
+
+  client      Client           @relation(fields: [clientId], references: [id])
+  assignments TaskAssignment[]
+
+  invoiceItems InvoiceItem[]
+
+  /**
+   * ===========================
+   * INDEXES
+   * ===========================
+   */
+
+  @@index([clientId])
+  @@index([parentTaskId])
+  @@index([deletedAt])
+}
+
+/**
+ * ===========================
+ * TASK ASSIGNMENT
+ * ===========================
+ */
+
+model TaskAssignment {
+  id         Int      @id @default(autoincrement())
+  taskId     Int
+  userId     Int
+  assignedAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([taskId, userId])
+}

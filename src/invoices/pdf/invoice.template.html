@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    * {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+    }
+
+    h1, h2, h3, h4, p {
+      margin: 0;
+      padding: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+
+    th, td {
+      border: 1px solid #000;
+      padding: 6px;
+      vertical-align: top;
+    }
+
+    .no-border td {
+      border: none;
+    }
+
+    .bordered-box {
+        border: 1px solid #000;
+        padding: 15px 20px;
+    }
+
+    .right { text-align: right; }
+    .center { text-align: center; }
+
+    .line {
+      background-color: rgb(94, 94, 94);
+      height: 1px;
+      border: 0px;
+      width: 100%;
+      /* color: #000; */
+    }
+
+    .inv-head {
+        display: flex;
+        width: 100%;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+
+    .inv-title {
+        padding-bottom: 10px;
+    }
+
+    .comp-box {
+        display: flex;
+        width: 100%;
+    }
+
+    .from-box, .to-box {
+        width: 50%;
+        border: 1px solid #000;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .to-box {
+        border-left: 0px !important;
+    }
+    
+
+    .notes-bank {
+        display: flex;
+        width: 100%;
+    }
+
+    .notes-part, .bank-part {
+        padding: 20px;
+        width: 50%;
+        border: 1px solid #000;
+
+    }
+
+    .bank-part {
+        border-left: 0px!important;
+    }
+
+    .seal-sign {
+        display: flex;
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    .seal, .sign {
+        padding: 20px;
+        width: 50%;
+        border: 1px solid #000;
+    }
+
+    .sign {
+        border-left: 0px!important;
+    }
+
+    .seal img, .sign img {
+        width: 100%;
+    }
+
+    .text-center {
+        text-align: center;
+        margin-top: 5px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2 class="inv-title" style="text-align:center">TAX INVOICE</h2>
+
+<div class="bordered-box">
+    <div class="inv-head">
+        <p><b>Invoice No:</b> {{invoiceNumber}}</p>
+        <p><b>Date:</b> {{invoiceDate}}</p>
+    </div>
+    
+    <div class="comp-box">
+        <div class="from-box">
+            <h4>From:</h4>
+            <p>
+                <b>{{companyName}}</b><br />
+                {{companyAddress}}
+            </p>
+        </div>
+
+        <div class="to-box">
+                
+            <h4>Buyer (Bill To):</h4>
+            <p>
+                <b>{{clientName}}</b><br />
+                {{clientAddress}}
+            </p>
+    
+        </div>
+    </div>
+
+
+
+    <!-- =======================
+         ITEMS TABLE
+    ======================= -->
+    <table>
+      <thead>
+        <tr>
+          <th>Sl No.</th>
+          <th>Description of Services</th>
+          <th>HSN / SAC</th>
+          <th class="center">Quantity</th>
+          <th class="right">Rate</th>
+          <th class="right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{items}}
+    
+        <!-- TOTAL ROW -->
+        <tr>
+          <td colspan="5" class="right"><b>Total</b></td>
+          <td class="right"><b>{{grandTotal}}</b></td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <!-- =======================
+         AMOUNT CHARGEABLE
+    ======================= -->
+    <p style="margin-top:10px">
+      <b>Amount Chargeable (in words):</b><br />
+      <i>{{amountChargeableWords}}</i>
+    </p>
+    
+    <!-- =======================
+         TAX SUMMARY
+    ======================= -->
+    {{taxSummaryTable}}
+    
+    <p style="margin-top:8px">
+      <b>Tax Amount (in words):</b><br />
+      <i>{{taxAmountWords}}</i>
+    </p>
+    
+
+
+    
+    <!-- =======================
+         BANK DETAILS
+    ======================= -->
+    <div class="notes-bank">
+        <div class="notes-part">
+            {{notesBlock}}
+        </div>
+        <div class="bank-part">
+            <h4>Company's Bank Details</h4>
+            <p><b>A/C Holder's Name:</b> {{bankName}}</p>
+            <!-- <p><b>Bank Name:</b> {{bankName}}</p> -->
+            <p><b>A/C No. :</b> {{bankAccount}}</p>
+            <p><b>IFSC Code:</b> {{bankIfsc}}</p>
+        </div>
+    </div>
+
+
+    
+    <!-- =======================
+         SEAL & SIGNATURE
+    ======================= -->
+    <div class="seal-sign">
+        <div class="seal">
+            <b>Company Seal</b><br />
+            <img
+              src="{{sealUrl}}"
+              alt="Company Seal"
+              style="height:90px; object-fit:contain;"
+            />
+        </div>
+
+        <div class="sign">
+            <b>Authorised Signatory</b><br />
+            <img
+              src="{{signatureUrl}}"
+              alt="Authorised Signature"
+              style="height:70px; object-fit:contain;"
+            />
+        </div>
+    </div>
+</div>
+
+<p class="text-center center">Under the Jurisdication of {{jurisdictionCity}} city</p>
+
+
+
+</body>
+</html>
