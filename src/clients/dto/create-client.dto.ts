@@ -2,6 +2,7 @@ import {
   IsOptional,
   IsString,
   IsEmail,
+  IsInt
 } from 'class-validator'
 
 export class CreateClientDto {
@@ -45,4 +46,9 @@ export class CreateClientDto {
   @IsOptional()
   @IsString()
   gstNumber?: string
+
+  @IsOptional()
+  @IsInt()
+  clientGroupId?: number
+
 }

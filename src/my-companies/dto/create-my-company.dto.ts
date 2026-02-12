@@ -1,8 +1,15 @@
-import { IsString, IsOptional, IsEmail, Length } from 'class-validator'
+import { IsString, IsOptional, IsEmail, Length, Matches } from 'class-validator'
 
 export class CreateMyCompanyDto {
   @IsString()
   name: string
+
+  @IsString()
+  @Length(2, 6)
+  @Matches(/^[A-Z0-9]+$/, {
+    message: 'Code must be uppercase letters or numbers only',
+  })
+  code: string   // ✅ REQUIRED
 
   @IsOptional()
   @IsString()
@@ -41,11 +48,7 @@ export class CreateMyCompanyDto {
   @IsEmail()
   email?: string
 
-  @IsOptional()
-  @IsString()
-  logoUrl?: string
-
-  // Bank details
+  // Bank
   @IsOptional()
   @IsString()
   bankName?: string
@@ -61,13 +64,4 @@ export class CreateMyCompanyDto {
   @IsOptional()
   @IsString()
   bankBranch?: string
-
-  @IsOptional()
-  @IsString()
-  sealUrl?: string
-
-  @IsOptional()
-  @IsString()
-  signatureUrl?: string
-
 }

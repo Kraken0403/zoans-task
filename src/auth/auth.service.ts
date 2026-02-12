@@ -19,28 +19,38 @@ import {
        LOGIN
     ====================== */
   
-    async login(email: string, password: string) {
-      const user = await this.prisma.user.findUnique({ where: { email } })
+    async login(identifier: string, password: string) {
+      const user = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: identifier },
+            { username: identifier },
+          ],
+        },
+      })
+    
       if (!user || !user.isActive) {
         throw new UnauthorizedException('Invalid credentials')
       }
-  
+    
       const valid = await bcrypt.compare(password, user.password)
       if (!valid) {
         throw new UnauthorizedException('Invalid credentials')
       }
-  
+    
       const payload = { sub: user.id, role: user.role }
-  
+    
       return {
         accessToken: this.jwt.sign(payload),
         user: {
           id: user.id,
           name: user.name,
+          username: user.username,
           role: user.role,
         },
       }
     }
+    
   
     /* ======================
        FORGOT PASSWORD

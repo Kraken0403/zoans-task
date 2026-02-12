@@ -1,6 +1,3 @@
-// Prisma schema for Task + Invoice system
-// Prisma v6 + MySQL compatible
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,11 +7,357 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/**
- * ===========================
- * ENUMS
- * ===========================
- */
+model User {
+  id               Int              @id @default(autoincrement())
+  name             String
+  email            String           @unique
+  username         String?           @unique
+  password         String
+  role             Role
+  isActive         Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  invoices         Invoice[]
+  myCompanies      MyCompany[]
+  assignedTasks    Task[]           @relation("AssignedTasks")
+  assignments      TaskAssignment[]
+
+  @@map("user")
+}
+
+/// *
+///  * ===========================
+///  * CLIENT
+///  * ===========================
+model Client {
+  id                Int                @id @default(autoincrement())
+  name              String
+  email             String?
+  phone             String?
+  gstNumber         String?
+  createdAt         DateTime           @default(now())
+  code              String             @unique
+  addressLine1      String?
+  addressLine2      String?
+  city              String?
+  pincode           String?
+  state             String?
+  stateCode         String?
+  invoices          Invoice[]
+  tasks             Task[]
+  taskMasterClients TaskMasterClient[]
+  // 🔥 GROUP RELATION
+  clientGroupId     Int?
+  clientGroup       ClientGroup? @relation(fields: [clientGroupId], references: [id], onDelete: SetNull)
+  @@map("client")
+}
+
+
+model ClientGroup {
+  id        Int      @id @default(autoincrement())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now())
+
+  clients   Client[]
+
+  @@map("client_group")
+}
+
+model MyCompany {
+  id           Int       @id @default(autoincrement())
+  ownerId      Int
+  name         String
+  gstin        String?   @unique
+  pan          String?
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  pincode      String?
+  phone        String?
+  email        String?
+  logoUrl      String?
+  bankName     String?
+  bankAccount  String?
+  bankIfsc     String?
+  bankBranch   String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sealUrl      String?
+  signatureUrl String?
+  code         String    @unique
+  invoices     Invoice[]
+  owner        User      @relation(fields: [ownerId], references: [id])
+
+  @@index([ownerId], map: "mycompany_ownerId_fkey")
+  @@map("mycompany")
+}
+
+model Invoice {
+  id                     Int               @id @default(autoincrement())
+  clientId               Int
+  createdAt              DateTime          @default(now())
+  cgstAmount             Decimal           @default(0.00) @db.Decimal(12, 2)
+  createdById            Int
+  discount               Decimal           @default(0.00) @db.Decimal(12, 2)
+  dueDate                DateTime?
+  fromCompanyId          Int
+  gstPercent             Decimal           @default(18.00) @db.Decimal(5, 2)
+  igstAmount             Decimal           @default(0.00) @db.Decimal(12, 2)
+  invoiceNumber          String            @unique
+  isIntraState           Boolean           @default(true)
+  isManualTotal          Boolean           @default(false)
+  issueDate              DateTime          @default(now())
+  notes                  String?
+  placeOfSupply          String?
+  pricingMode            GstPricingMode    @default(EXCLUSIVE)
+  sgstAmount             Decimal           @default(0.00) @db.Decimal(12, 2)
+  status                 InvoiceStatus     @default(DRAFT)
+  subtotal               Decimal           @default(0.00) @db.Decimal(12, 2)
+  total                  Decimal           @default(0.00) @db.Decimal(12, 2)
+  updatedAt              DateTime          @updatedAt
+  bankAccount            String?
+  bankBranch             String?
+  bankIfsc               String?
+  bankName               String?
+  clientAddress          String?
+  clientCity             String?
+  clientEmail            String?
+  clientGstin            String?
+  clientName             String?
+  clientPhone            String?
+  clientPincode          String?
+  clientState            String?
+  clientStateCode        String?
+  companySealUrl         String?
+  companySignatureUrl    String?
+  fromCompanyAddress     String?
+  fromCompanyEmail       String?
+  fromCompanyGstin       String?
+  fromCompanyName        String?
+  fromCompanyPhone       String?
+  fromCompanyState       String?
+  fromCompanyStateCode   String?
+  placeOfSupplyState     String?
+  placeOfSupplyStateCode String?
+  fromCompanyCity        String?
+  client                 Client            @relation(fields: [clientId], references: [id])
+  createdBy              User              @relation(fields: [createdById], references: [id])
+  fromCompany            MyCompany         @relation(fields: [fromCompanyId], references: [id])
+  emailLogs              InvoiceEmailLog[]
+  items                  InvoiceItem[]
+  sourceType String? // "MANUAL" | "TASKS"
+  @@index([clientId], map: "invoice_clientId_fkey")
+  @@index([createdById], map: "invoice_createdById_fkey")
+  @@index([fromCompanyId], map: "invoice_fromCompanyId_fkey")
+  @@map("invoice")
+}
+
+model InvoiceItem {
+  id          Int      @id @default(autoincrement())
+  invoiceId   Int
+  taskId      Int?
+  amount      Decimal  @default(0.00) @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+  description String?
+  quantity    Int      @default(1)
+  title       String
+  unitPrice   Decimal  @default(0.00) @db.Decimal(12, 2)
+  hsnSac      String?
+  unit        String?
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  task        Task?    @relation(fields: [taskId], references: [id])
+
+  @@index([invoiceId], map: "invoiceitem_invoiceId_fkey")
+  @@index([taskId], map: "invoiceitem_taskId_fkey")
+  @@map("invoiceitem")
+}
+
+model InvoiceSequence {
+  id        Int    @id @default(autoincrement())
+  companyId Int
+  fy        String
+  month     String
+  counter   Int
+
+  @@unique([companyId, fy, month], name: "companyId_fy_month")
+  @@map("invoicesequence")
+}
+
+model InvoiceEmailLog {
+  id        Int      @id @default(autoincrement())
+  invoiceId Int
+  toEmail   String
+  subject   String
+  message   String?
+  sentAt    DateTime @default(now())
+  status    String
+  error     String?
+  createdAt DateTime @default(now())
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId], map: "invoiceemaillog_invoiceId_fkey")
+  @@map("invoiceemaillog")
+}
+
+/// *
+///  * ===========================
+///  * TASK CATEGORY (NEW)
+///  * ===========================
+model TaskCategory {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  description String?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  tasks       Task[]
+  taskMasters TaskMaster[]
+
+  @@map("taskcategory")
+}
+
+/// *
+///  * ===========================
+///  * TASK MASTER (NEW)
+///  * ===========================
+model TaskMaster {
+  id            Int                @id @default(autoincrement())
+  title         String
+  description   String?
+  categoryId    Int
+  frequency     FrequencyType
+  interval      Int?
+  financialYear String?
+  defaultDueDay Int?
+  startDate     DateTime
+  endDate       DateTime?
+  isActive      Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  tasks         Task[]
+  category      TaskCategory       @relation(fields: [categoryId], references: [id])
+  clients       TaskMasterClient[]
+  isBillable    Boolean  @default(true) 
+
+  hsnSac       String?        // e.g. "9983"
+  gstRate      Decimal? @db.Decimal(5,2) // e.g. 18.00
+  unitLabel    String?        // "Return", "Month", "Service"
+
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("taskmaster")
+}
+
+/// *
+///  * ===========================
+///  * TASK MASTER ↔ CLIENT (NEW)
+///  * ===========================
+model TaskMasterClient {
+  id           Int        @id @default(autoincrement())
+  taskMasterId Int
+  clientId     Int
+  customDueDay Int?
+  startDate    DateTime?
+  endDate      DateTime?
+  isActive     Boolean    @default(true)
+  client       Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  taskMaster   TaskMaster @relation(fields: [taskMasterId], references: [id], onDelete: Cascade)
+
+  @@unique([taskMasterId, clientId])
+  @@index([clientId])
+  @@index([taskMasterId])
+  @@index([isActive])
+  @@map("taskmasterclient")
+}
+
+
+model Task {
+  id               Int              @id @default(autoincrement())
+  title            String
+  description      String?
+  /// *
+  ///    * ===========================
+  ///    * CLIENT & STATUS
+  ///    * ===========================
+  clientId         Int
+  status           TaskStatus       @default(PENDING)
+  interval         Int?
+  /// *
+  ///    * ===========================
+  ///    * EXECUTION TRACKING
+  ///    * ===========================
+  dueDate          DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime         @default(now())
+    // 🔥 SNAPSHOT FROM MASTER
+  hsnSac       String?
+  gstRate      Decimal? @db.Decimal(5,2)
+  unitLabel    String?
+  /// *
+  ///    * ===========================
+  ///    * SOFT DELETE
+  ///    * ===========================
+  deletedAt        DateTime?
+  /// *
+  ///    * ===========================
+  ///    * NEW: CURRENT ASSIGNEE (fast filter)
+  ///    * ===========================
+  assignedToUserId Int?
+  categoryId       Int?
+  periodEnd        DateTime?
+  /// *
+  ///    * ===========================
+  ///    * NEW: PERIOD (for generated monthly/quarterly/yearly tasks)
+  ///    * ===========================
+  periodStart      DateTime?
+  /// *
+  ///    * ===========================
+  ///    * NEW: MASTER LINK + CATEGORY SNAPSHOT
+  ///    * ===========================
+  taskMasterId     Int?
+  isBillable      Boolean @default(true)
+  periodKey        String?
+  invoiceItems     InvoiceItem[]
+  assignedToUser   User?            @relation("AssignedTasks", fields: [assignedToUserId], references: [id])
+  category         TaskCategory?    @relation(fields: [categoryId], references: [id])
+  client           Client           @relation(fields: [clientId], references: [id])
+  taskMaster       TaskMaster?      @relation(fields: [taskMasterId], references: [id])
+  assignments      TaskAssignment[]
+
+  @@index([clientId])
+  @@index([deletedAt])
+  @@index([taskMasterId])
+  @@index([categoryId])
+  @@index([assignedToUserId])
+  @@index([periodStart])
+  @@index([taskMasterId, clientId, periodKey])
+  @@map("task")
+}
+
+/// *
+///  * ===========================
+///  * TASK ASSIGNMENT (Audit Trail)
+///  * ===========================
+model TaskAssignment {
+  id         Int      @id @default(autoincrement())
+  taskId     Int
+  userId     Int
+  assignedAt DateTime @default(now())
+  task       Task     @relation(fields: [taskId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@unique([taskId, userId])
+  @@index([userId], map: "taskassignment_userId_fkey")
+  @@map("taskassignment")
+}
+
+/// *
+///  * ===========================
+///  * ENUMS
+///  * ===========================
 enum InvoiceStatus {
   DRAFT
   SENT
@@ -23,14 +366,15 @@ enum InvoiceStatus {
 }
 
 enum GstPricingMode {
-  EXCLUSIVE // prices entered exclude GST, GST added on top
-  INCLUSIVE // prices entered include GST, GST extracted out
+  EXCLUSIVE
+  INCLUSIVE
 }
 
 enum Role {
   ADMIN
   MANAGER
   EMPLOYEE
+  EXECUTIVE
 }
 
 enum TaskStatus {
@@ -45,319 +389,7 @@ enum FrequencyType {
   DAILY
   WEEKLY
   MONTHLY
+  QUARTERLY
   YEARLY
-}
-
-/**
- * ===========================
- * USER / EMPLOYEE
- * ===========================
- */
-
-model User {
-  id       Int     @id @default(autoincrement())
-  name     String
-  email    String  @unique
-  password String
-  role     Role
-  isActive Boolean @default(true)
-
-  resetToken       String?
-  resetTokenExpiry DateTime?
-
-  createdAt DateTime @default(now())
-
-  assignments TaskAssignment[]
-  myCompanies MyCompany[]
-  invoices    Invoice[]
-}
-
-/**
- * ===========================
- * CLIENT
- * ===========================
- */
-model Client {
-  id   Int    @id @default(autoincrement())
-  code String @unique
-  name String
-
-  email     String?
-  phone     String?
-  gstNumber String?
-
-  addressLine1 String?
-  addressLine2 String?
-  city         String?
-  state        String?
-  stateCode    String? // 🔥 IMPORTANT for GST
-  pincode      String?
-
-  createdAt DateTime @default(now())
-
-  tasks    Task[]
-  invoices Invoice[]
-}
-
-model MyCompany {
-  id           Int     @id @default(autoincrement())
-  ownerId      Int
-  owner        User    @relation(fields: [ownerId], references: [id])
-  code         String  @unique
-  name         String
-  gstin        String? @unique
-  pan          String?
-  addressLine1 String?
-  addressLine2 String?
-  city         String?
-  state        String?
-  pincode      String?
-  phone        String?
-  email        String?
-  logoUrl      String? // optional, used for invoice PDF
-
-  bankName    String?
-  bankAccount String?
-  bankIfsc    String?
-  bankBranch  String?
-
-  sealUrl      String?
-  signatureUrl String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  invoices Invoice[]
-}
-
-// =====================
-// INVOICES
-// =====================
-
-model Invoice {
-  id            Int    @id @default(autoincrement())
-  invoiceNumber String @unique
-
-  clientId Int
-  client   Client @relation(fields: [clientId], references: [id])
-
-  fromCompanyId Int
-  fromCompany   MyCompany @relation(fields: [fromCompanyId], references: [id])
-
-  issueDate DateTime  @default(now())
-  dueDate   DateTime?
-
-  status InvoiceStatus @default(DRAFT)
-
-  // GST settings for THIS invoice
-  gstPercent    Decimal        @default(18.00) @db.Decimal(5, 2)
-  pricingMode   GstPricingMode @default(EXCLUSIVE)
-  isIntraState  Boolean        @default(true) // your case: true => CGST+SGST
-  placeOfSupply String? // optional
-
-  placeOfSupplyState     String?
-  placeOfSupplyStateCode String?
-
-  // Amounts (computed OR manually overridden)
-  subtotal Decimal @default(0) @db.Decimal(12, 2)
-  discount Decimal @default(0) @db.Decimal(12, 2)
-
-  cgstAmount Decimal @default(0) @db.Decimal(12, 2)
-  sgstAmount Decimal @default(0) @db.Decimal(12, 2)
-  igstAmount Decimal @default(0) @db.Decimal(12, 2)
-
-  total Decimal @default(0) @db.Decimal(12, 2)
-
-  // Manual override toggle (you said you'll enter money manually sometimes)
-  isManualTotal Boolean @default(false)
-
-  notes String?
-
-  createdById Int
-  createdBy   User @relation(fields: [createdById], references: [id])
-
-  items     InvoiceItem[]
-  emailLogs InvoiceEmailLog[]
-
-  // --- From Company Snapshot ---
-
-  fromCompanyName      String?
-  fromCompanyAddress   String?
-  fromCompanyGstin     String? 
-  fromCompanyCity     String? 
-  fromCompanyState     String?
-  fromCompanyStateCode String?
-  fromCompanyPhone     String?
-  fromCompanyEmail     String?
-
-  // --- Client Snapshot ---
-  clientName      String?
-  clientGstin     String?
-  clientAddress   String?
-  clientCity      String?
-  clientState     String?
-  clientStateCode String?
-  clientPincode   String?
-  clientPhone     String?
-  clientEmail     String?
-
-  // --- Bank Snapshot ---
-  bankName    String?
-  bankAccount String?
-  bankIfsc    String?
-  bankBranch  String?
-
-  // --- Assets Snapshot ---
-  companySealUrl      String?
-  companySignatureUrl String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model InvoiceItem {
-  id        Int     @id @default(autoincrement())
-  invoiceId Int
-  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-
-  // If this item came from a task
-  taskId      Int?
-  task        Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  hsnSac      String?
-  unit        String?
-  title       String
-  description String?
-  quantity    Int     @default(1)
-  unitPrice   Decimal @default(0) @db.Decimal(12, 2)
-  amount      Decimal @default(0) @db.Decimal(12, 2) // qty * unitPrice
-
-  createdAt DateTime @default(now())
-}
-
-model InvoiceSequence {
-  id        Int    @id @default(autoincrement())
-  companyId Int
-  fy        String
-  month     String
-  counter   Int
-
-  @@unique([companyId, fy, month], name: "companyId_fy_month")
-}
-
-model InvoiceEmailLog {
-  id        Int     @id @default(autoincrement())
-  invoiceId Int
-  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-
-  toEmail String
-  subject String
-  message String?
-  sentAt  DateTime @default(now())
-  status  String // "SUCCESS" | "FAILED"
-  error   String?
-
-  createdAt DateTime @default(now())
-}
-
-/**
- * ===========================
- * TASK
- * ===========================
- */
-model Task {
-  id          Int     @id @default(autoincrement())
-  title       String
-  description String?
-
-  /**
-   * ===========================
-   * CLIENT & STATUS
-   * ===========================
-   */
-
-  clientId Int
-  status   TaskStatus @default(PENDING)
-
-  /**
-   * ===========================
-   * RECURRING CONFIG (TEMPLATE)
-   * ===========================
-   */
-
-  isRecurring  Boolean        @default(false)
-  frequency    FrequencyType?
-  interval     Int?
-  startDate    DateTime?
-  endDate      DateTime? // ✅ stop generating after this date (optional)
-  skipWeekends Boolean        @default(false) // ✅ shift Sat/Sun to Monday
-  isPaused     Boolean        @default(false) // ✅ pause recurrence
-  pausedAt     DateTime?
-
-  /**
-   * ===========================
-   * SOFT DELETE
-   * ===========================
-   */
-
-  deletedAt DateTime? // ✅ templates can be soft-deleted; instances remain
-
-  /**
-   * ===========================
-   * RECURRING RELATION
-   * ===========================
-   */
-
-  parentTaskId Int?
-  parentTask   Task?  @relation("RecurringTaskRelation", fields: [parentTaskId], references: [id])
-  childTasks   Task[] @relation("RecurringTaskRelation")
-
-  /**
-   * ===========================
-   * EXECUTION TRACKING
-   * ===========================
-   */
-
-  dueDate     DateTime?
-  completedAt DateTime?
-
-  createdAt DateTime @default(now())
-
-  /**
-   * ===========================
-   * RELATIONS
-   * ===========================
-   */
-
-  client      Client           @relation(fields: [clientId], references: [id])
-  assignments TaskAssignment[]
-
-  invoiceItems InvoiceItem[]
-
-  /**
-   * ===========================
-   * INDEXES
-   * ===========================
-   */
-
-  @@index([clientId])
-  @@index([parentTaskId])
-  @@index([deletedAt])
-}
-
-/**
- * ===========================
- * TASK ASSIGNMENT
- * ===========================
- */
-
-model TaskAssignment {
-  id         Int      @id @default(autoincrement())
-  taskId     Int
-  userId     Int
-  assignedAt DateTime @default(now())
-
-  task Task @relation(fields: [taskId], references: [id])
-  user User @relation(fields: [userId], references: [id])
-
-  @@unique([taskId, userId])
+  EVENT_BASED
 }

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `taskmaster` MODIFY `frequency` ENUM('DAILY', 'WEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY', 'EVENT_BASED') NOT NULL;

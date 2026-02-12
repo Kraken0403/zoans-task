@@ -8,6 +8,7 @@ import {
   IsObject,
   IsString,
 } from 'class-validator'
+import { Type } from 'class-transformer'
 import { GstPricingMode } from './create-invoice.dto'
 
 export class CreateInvoiceFromTasksDto {
@@ -18,18 +19,13 @@ export class CreateInvoiceFromTasksDto {
   fromCompanyId: number
 
   @IsArray()
+  @IsInt({ each: true })
   taskIds: number[]
 
-  /**
-   * Example:
-   * {
-   *   "12": 5000,
-   *   "15": 12000
-   * }
-   */
-  @IsOptional()
+  // ✅ ADD THIS (CRITICAL)
   @IsObject()
-  taskPriceMap?: Record<number, number>
+  taskPriceMap: Record<number, number>
+  // Example: { "12": 5000, "15": 12000 }
 
   @IsOptional()
   @IsEnum(GstPricingMode)
@@ -37,6 +33,7 @@ export class CreateInvoiceFromTasksDto {
 
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   gstPercent?: number = 18
 
   @IsOptional()
@@ -45,6 +42,7 @@ export class CreateInvoiceFromTasksDto {
 
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
   discount?: number = 0
 
   @IsOptional()
@@ -71,9 +69,6 @@ export class CreateInvoiceFromTasksDto {
   @IsNumber()
   total?: number
 
-  /**
-   * Used as invoice footer / declaration / special instruction
-   */
   @IsOptional()
   @IsString()
   notes?: string

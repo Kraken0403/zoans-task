@@ -1,26 +1,43 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import { CreateMyCompanyDto } from './dto/create-my-company.dto'
 
 @Injectable()
 export class MyCompaniesService {
   constructor(private prisma: PrismaService) {}
 
-  create(ownerId: number, dto: any) {
-    return this.prisma.myCompany.create({ data: { ...dto, ownerId } })
+  async create(ownerId: number, dto: CreateMyCompanyDto) {
+    // Optional: normalize safety
+    dto.code = dto.code.toUpperCase()
+
+    return this.prisma.myCompany.create({
+      data: {
+        ...dto,
+        ownerId,
+      },
+    })
   }
 
   findAll(ownerId: number) {
-    return this.prisma.myCompany.findMany({ where: { ownerId }, orderBy: { id: 'desc' } })
+    return this.prisma.myCompany.findMany({
+      where: { ownerId },
+      orderBy: { id: 'desc' },
+    })
   }
 
   async findOne(ownerId: number, id: number) {
-    const c = await this.prisma.myCompany.findFirst({ where: { id, ownerId } })
+    const c = await this.prisma.myCompany.findFirst({
+      where: { id, ownerId },
+    })
     if (!c) throw new NotFoundException('Company not found')
     return c
   }
 
   update(ownerId: number, id: number, dto: any) {
-    return this.prisma.myCompany.update({ where: { id }, data: dto })
+    return this.prisma.myCompany.update({
+      where: { id },
+      data: dto,
+    })
   }
 
   remove(ownerId: number, id: number) {
