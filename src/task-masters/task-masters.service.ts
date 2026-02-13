@@ -171,10 +171,12 @@ export class TaskMastersService {
 
   // -------------------- GENERATION (BUTTON) --------------------
   private async generateEventBasedTasks(
-    master: Prisma.TaskMasterGetPayload<{
-      include: { clients: true }
-    }>,
-    assignedToUserId?: number | null
+    master: any,
+    assignedToUserId: number | undefined,
+    finalIsBillable: boolean,
+    finalHsnSac: string | null,
+    finalGstRate: number | null,
+    finalUnitLabel: string | null
   ) {
     const existingTasks = await this.prisma.task.findMany({
       where: {
@@ -201,49 +203,33 @@ export class TaskMastersService {
           data: {
             title: master.title,
             description: master.description ?? null,
-  
             clientId: link.clientId,
             status: 'PENDING',
-  
             taskMasterId: master.id,
             categoryId: master.categoryId,
   
-            isBillable: master.isBillable,
-            hsnSac: master.hsnSac,
-            gstRate: master.gstRate,
-            unitLabel: master.unitLabel,
+            isBillable: finalIsBillable,
+            hsnSac: finalIsBillable ? finalHsnSac : null,
+            gstRate: finalIsBillable ? finalGstRate : null,
+            unitLabel: finalIsBillable ? finalUnitLabel : null,
   
-            dueDate: link.customDueDay
-              ? this.safeUTCDate(
-                  new Date().getUTCFullYear(),
-                  new Date().getUTCMonth() + 1,
-                  link.customDueDay,
-                )
-              : null,
+            dueDate: null,
           },
         })
   
-        // ✅ CREATE ASSIGNMENT (OPTION 1)
         if (assignedToUserId) {
           await tx.taskAssignment.create({
-            data: {
-              taskId: task.id,
-              userId: assignedToUserId,
-            },
+            data: { taskId: task.id, userId: assignedToUserId },
           })
         }
-  
-        created++
       })
+  
+      created++
     }
   
-    return {
-      success: true,
-      type: 'EVENT_BASED',
-      created,
-      skipped,
-    }
+    return { success: true, type: 'EVENT_BASED', created, skipped }
   }
+  
   
 
   private parseFinancialYear(financialYear: string) {
@@ -323,7 +309,12 @@ export class TaskMastersService {
     master: any,
     dto: GenerateTasksDto,
     activeClientLinks: any[],
-  ) {
+    finalIsBillable: boolean,
+    finalHsnSac: string | null,
+    finalGstRate: number | null,
+    finalUnitLabel: string | null
+  )
+  {
     if (!dto.financialYear) {
       throw new BadRequestException('financialYear is required for DAILY generation')
     }
@@ -389,10 +380,11 @@ export class TaskMastersService {
               status: 'PENDING',
               taskMasterId: master.id,
               categoryId: master.categoryId,
-              isBillable: master.isBillable,
-              hsnSac: master.hsnSac,
-              gstRate: master.gstRate,
-              unitLabel: master.unitLabel,
+              isBillable: finalIsBillable,
+              hsnSac: finalIsBillable ? finalHsnSac : null,
+              gstRate: finalIsBillable ? finalGstRate : null,
+              unitLabel: finalIsBillable ? finalUnitLabel : null,
+              
               periodStart: rangeStart,
               periodEnd: rangeEnd,
               dueDate,
@@ -419,7 +411,15 @@ export class TaskMastersService {
     }
   }
   
-  private async generateWeeklyTasks(master: any, dto: GenerateTasksDto, activeClientLinks: any[]) {
+  private async generateWeeklyTasks(
+    master: any,
+    dto: GenerateTasksDto,
+    activeClientLinks: any[],
+    finalIsBillable: boolean,
+    finalHsnSac: string | null,
+    finalGstRate: number | null,
+    finalUnitLabel: string | null
+  ) {
     if (!dto.financialYear) {
       throw new BadRequestException('financialYear is required for WEEKLY generation')
     }
@@ -483,10 +483,11 @@ export class TaskMastersService {
               status: 'PENDING',
               taskMasterId: master.id,
               categoryId: master.categoryId,
-              isBillable: master.isBillable,
-              hsnSac: master.hsnSac,
-              gstRate: master.gstRate,
-              unitLabel: master.unitLabel,
+              isBillable: finalIsBillable,
+              hsnSac: finalIsBillable ? finalHsnSac : null,
+              gstRate: finalIsBillable ? finalGstRate : null,
+              unitLabel: finalIsBillable ? finalUnitLabel : null,
+
               periodStart: rangeStart,
               periodEnd: rangeEnd,
               dueDate,
@@ -514,56 +515,52 @@ export class TaskMastersService {
   }
   
 
-  private async generateMonthlyTasks(master: any, dto: GenerateTasksDto, activeClientLinks: any[]) {
+  private async generateMonthlyTasks(
+    master: any,
+    dto: GenerateTasksDto,
+    activeClientLinks: any[],
+    finalIsBillable: boolean,
+    finalHsnSac: string | null,
+    finalGstRate: number | null,
+    finalUnitLabel: string | null
+  ) {
     let year: number
     let month: number
   
     if (dto.financialYear) {
-      if (!dto.month) throw new BadRequestException('month is required when using financialYear for MONTHLY')
+      if (!dto.month)
+        throw new BadRequestException('month is required for MONTHLY')
       const fy = this.getFyRange(dto.financialYear)
       month = dto.month
       year = month >= 4 ? fy.fyStartYear : fy.fyEndYear
     } else {
-      if (!dto.year || !dto.month) throw new BadRequestException('year and month are required for MONTHLY')
+      if (!dto.year || !dto.month)
+        throw new BadRequestException('year and month required')
       year = dto.year
       month = dto.month
     }
   
-    const { start: periodStart, end: periodEnd } = this.monthRangeUTC(year, month)
+    const { start: periodStart, end: periodEnd } =
+      this.monthRangeUTC(year, month)
+  
     const periodKey = `${year}-${String(month).padStart(2, '0')}`
-  
-    const masterStart = new Date(master.startDate)
-    const masterEnd = master.endDate ? new Date(master.endDate) : null
-  
-    // filter links in month
-    const links = activeClientLinks.filter(link => {
-      const linkStart = link.startDate ? new Date(link.startDate) : null
-      const linkEnd = link.endDate ? new Date(link.endDate) : null
-      const clamped = this.clampToMasterAndLinkRange(masterStart, masterEnd, linkStart, linkEnd, periodStart, periodEnd)
-      return !!clamped
-    })
-  
-    const existing = await this.prisma.task.findMany({
-      where: {
-        taskMasterId: master.id,
-        periodStart,
-        clientId: { in: links.map(l => l.clientId) },
-      },
-      select: { clientId: true },
-    })
-    const existingClientIds = new Set(existing.map(t => t.clientId))
   
     let created = 0
     let skippedExisting = 0
   
-    for (const link of links) {
-      if (existingClientIds.has(link.clientId)) {
+    for (const link of activeClientLinks) {
+      const existing = await this.prisma.task.findFirst({
+        where: {
+          taskMasterId: master.id,
+          clientId: link.clientId,
+          periodStart,
+        },
+      })
+  
+      if (existing) {
         skippedExisting++
         continue
       }
-  
-      const dueDay = link.customDueDay ?? master.defaultDueDay ?? null
-      const dueDate = dueDay ? this.computeMonthlyDueDate(year, month, dueDay) : null
   
       await this.prisma.$transaction(async (tx) => {
         const task = await tx.task.create({
@@ -574,13 +571,15 @@ export class TaskMastersService {
             status: 'PENDING',
             taskMasterId: master.id,
             categoryId: master.categoryId,
-            isBillable: master.isBillable,
-            hsnSac: master.hsnSac,
-            gstRate: master.gstRate,
-            unitLabel: master.unitLabel,
+  
+            isBillable: finalIsBillable,
+            hsnSac: finalIsBillable ? finalHsnSac : null,
+            gstRate: finalIsBillable ? finalGstRate : null,
+            unitLabel: finalIsBillable ? finalUnitLabel : null,
+  
             periodStart,
             periodEnd,
-            dueDate,
+            dueDate: null,
           },
         })
   
@@ -602,6 +601,7 @@ export class TaskMastersService {
     }
   }
   
+  
   private computeMonthlyDueDate(year: number, month: number, dueDay: number) {
     // Monthly due day in next month
     let y = year
@@ -611,7 +611,16 @@ export class TaskMastersService {
   }
   
 
-  private async generateQuarterlyTasks(master: any, dto: GenerateTasksDto, activeClientLinks: any[]) {
+  private async generateQuarterlyTasks(
+    master: any,
+    dto: GenerateTasksDto,
+    activeClientLinks: any[],
+    finalIsBillable: boolean,
+    finalHsnSac: string | null,
+    finalGstRate: number | null,
+    finalUnitLabel: string | null
+  )
+  {
     if (!dto.financialYear) throw new BadRequestException('financialYear is required for QUARTERLY')
     if (!dto.quarter) throw new BadRequestException('quarter is required for QUARTERLY (1..4)')
   
@@ -650,10 +659,11 @@ export class TaskMastersService {
             status: 'PENDING',
             taskMasterId: master.id,
             categoryId: master.categoryId,
-            isBillable: master.isBillable,
-            hsnSac: master.hsnSac,
-            gstRate: master.gstRate,
-            unitLabel: master.unitLabel,
+            isBillable: finalIsBillable,
+            hsnSac: finalIsBillable ? finalHsnSac : null,
+            gstRate: finalIsBillable ? finalGstRate : null,
+            unitLabel: finalIsBillable ? finalUnitLabel : null,
+
             periodStart,
             periodEnd,
             dueDate: null, // add due rules later if you want
@@ -677,7 +687,15 @@ export class TaskMastersService {
   }
   
 
-  private async generateYearlyTasks(master: any, dto: GenerateTasksDto, activeClientLinks: any[]) {
+  private async generateYearlyTasks(
+    master: any,
+    dto: GenerateTasksDto,
+    activeClientLinks: any[],
+    finalIsBillable: boolean,
+    finalHsnSac: string | null,
+    finalGstRate: number | null,
+    finalUnitLabel: string | null
+  ){
     if (!dto.financialYear) throw new BadRequestException('financialYear is required for YEARLY')
   
     const fy = this.getFyRange(dto.financialYear)
@@ -716,10 +734,11 @@ export class TaskMastersService {
             status: 'PENDING',
             taskMasterId: master.id,
             categoryId: master.categoryId,
-            isBillable: master.isBillable,
-            hsnSac: master.hsnSac,
-            gstRate: master.gstRate,
-            unitLabel: master.unitLabel,
+            isBillable: finalIsBillable,
+            hsnSac: finalIsBillable ? finalHsnSac : null,
+            gstRate: finalIsBillable ? finalGstRate : null,
+            unitLabel: finalIsBillable ? finalUnitLabel : null,
+
             periodStart,
             periodEnd,
             dueDate: null, // Yearly due date logic later
@@ -752,43 +771,117 @@ export class TaskMastersService {
   
     if (!master) throw new NotFoundException('TaskMaster not found')
     if (!master.isActive) throw new BadRequestException('TaskMaster is not active')
-    if (!master.clients.length) throw new BadRequestException('No clients assigned to this TaskMaster')
+    if (!master.clients.length)
+      throw new BadRequestException('No clients assigned to this TaskMaster')
   
-    // EVENT_BASED: ignore FY/month/quarter, just create missing once-per-client
-    if (master.frequency === FrequencyType.EVENT_BASED) {
-      return this.generateEventBasedTasks(master, dto.assignedToUserId)
-    }
+    // 🔥 BILLING RESOLUTION (OVERRIDE SUPPORT)
+    const finalIsBillable =
+      dto.isBillable !== undefined
+        ? dto.isBillable
+        : master.isBillable
   
-    // active links within master validity (link windows handled inside per generator)
+    const finalHsnSac =
+      dto.hsnSac !== undefined
+        ? dto.hsnSac
+        : master.hsnSac
+  
+    const finalGstRateRaw =
+    dto.gstRate !== undefined
+      ? dto.gstRate
+      : master.gstRate
+  
+  const finalGstRate =
+    finalGstRateRaw !== null && finalGstRateRaw !== undefined
+      ? Number(finalGstRateRaw)
+          : null
+      
+  
+    const finalUnitLabel =
+      dto.unitLabel !== undefined
+        ? dto.unitLabel
+        : master.unitLabel
+  
     const activeClientLinks = master.clients.filter(l => l.isActive)
+  
     if (!activeClientLinks.length) {
       return {
         success: true,
         taskMasterId: master.id,
-        results: { created: 0, skippedExisting: 0, skippedInactiveOrOutOfRange: master.clients.length },
+        results: { created: 0, skippedExisting: 0 },
       }
     }
   
     switch (master.frequency) {
+      case FrequencyType.EVENT_BASED:
+        return this.generateEventBasedTasks(
+          master,
+          dto.assignedToUserId,
+          finalIsBillable,
+          finalHsnSac,
+          finalGstRate,
+          finalUnitLabel
+        )
+  
       case FrequencyType.DAILY:
-        return this.generateDailyTasks(master, dto, activeClientLinks)
+        return this.generateDailyTasks(
+          master,
+          dto,
+          activeClientLinks,
+          finalIsBillable,
+          finalHsnSac,
+          finalGstRate,
+          finalUnitLabel
+        )
   
       case FrequencyType.WEEKLY:
-        return this.generateWeeklyTasks(master, dto, activeClientLinks)
+        return this.generateWeeklyTasks(
+          master,
+          dto,
+          activeClientLinks,
+          finalIsBillable,
+          finalHsnSac,
+          finalGstRate,
+          finalUnitLabel
+        )
   
       case FrequencyType.MONTHLY:
-        return this.generateMonthlyTasks(master, dto, activeClientLinks)
+        return this.generateMonthlyTasks(
+          master,
+          dto,
+          activeClientLinks,
+          finalIsBillable,
+          finalHsnSac,
+          finalGstRate,
+          finalUnitLabel
+        )
   
       case FrequencyType.QUARTERLY:
-        return this.generateQuarterlyTasks(master, dto, activeClientLinks)
+        return this.generateQuarterlyTasks(
+          master,
+          dto,
+          activeClientLinks,
+          finalIsBillable,
+          finalHsnSac,
+          finalGstRate,
+          finalUnitLabel
+        )
   
       case FrequencyType.YEARLY:
-        return this.generateYearlyTasks(master, dto, activeClientLinks)
+        return this.generateYearlyTasks(
+          master,
+          dto,
+          activeClientLinks,
+          finalIsBillable,
+          finalHsnSac,
+          finalGstRate,
+          finalUnitLabel
+        )
   
       default:
-        throw new BadRequestException(`${master.frequency} generation not supported yet`)
+        throw new BadRequestException(`${master.frequency} not supported`)
     }
   }
+  
   
 
   private safeUTCDate(year: number, month: number, day: number) {

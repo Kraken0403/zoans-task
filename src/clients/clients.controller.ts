@@ -8,6 +8,7 @@ import {
     Body,
     UploadedFile,
     UseInterceptors,
+    ParseIntPipe
   } from '@nestjs/common'
   import { FileInterceptor } from '@nestjs/platform-express'
   import { ClientsService } from './clients.service'
@@ -33,10 +34,15 @@ import {
     findAll() {
       return this.clients.findAll()
     }
+
+    @Get('ungrouped')
+    findUngrouped() {
+      return this.clients.findUngrouped()
+    }
   
     @Get(':id')
-    findOne(@Param('id') id: string) {
-      return this.clients.findOne(+id)
+    findOne(@Param('id', ParseIntPipe) id: number) {
+      return this.clients.findOne(id)
     }
   
     @Patch(':id')
@@ -51,6 +57,9 @@ import {
     remove(@Param('id') id: string) {
       return this.clients.remove(+id)
     }
+
+
+
   
     /* ========================
        EXCEL IMPORT

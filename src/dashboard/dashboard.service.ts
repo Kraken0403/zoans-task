@@ -18,11 +18,11 @@ export class DashboardService {
     const [
       taskMastersCount,
       tasksCount,
-      myPendingCount,
-      overdueCount,
       clientsCount,
       invoicesCount,
-      draftInvoiceAggregate,
+      myPendingCount,
+      overdueCount,
+      pendingInvoiceAggregate,
       upcomingTasks,
       overdueTasks,
       statusBreakdown,
@@ -45,7 +45,7 @@ export class DashboardService {
       this.prisma.invoice.count(),
 
       /* ===========================
-         MY TASKS (FAST FILTER)
+         MY TASKS
       =========================== */
 
       this.prisma.task.count({
@@ -69,12 +69,17 @@ export class DashboardService {
       }),
 
       /* ===========================
-         DRAFT INVOICE TOTAL
+         🔥 PENDING INVOICE TOTAL
+         (DRAFT + SENT only)
       =========================== */
 
       this.prisma.invoice.aggregate({
         _sum: { total: true },
-        where: { status: InvoiceStatus.DRAFT },
+        where: {
+          status: {
+            in: [InvoiceStatus.DRAFT, InvoiceStatus.SENT],
+          },
+        },
       }),
 
       /* ===========================
@@ -139,9 +144,9 @@ export class DashboardService {
        SAFE DECIMAL HANDLING
     =========================== */
 
-    const draftInvoiceAmount =
-      draftInvoiceAggregate._sum?.total
-        ? Number(draftInvoiceAggregate._sum.total)
+    const pendingInvoiceAmount =
+      pendingInvoiceAggregate._sum?.total
+        ? Number(pendingInvoiceAggregate._sum.total)
         : 0
 
     return {
@@ -153,7 +158,7 @@ export class DashboardService {
       myPendingCount,
       overdueCount,
 
-      draftInvoiceAmount,
+      pendingInvoiceAmount,
 
       upcomingTasks,
       overdueTasks,

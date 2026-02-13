@@ -1,5 +1,12 @@
-// dto/generate-tasks.dto.ts
-import { IsInt, IsOptional, IsString, Min, Max } from 'class-validator'
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+  Max,
+  IsBoolean,
+  IsNumber,
+} from 'class-validator'
 
 export class GenerateTasksDto {
   @IsOptional()
@@ -18,7 +25,6 @@ export class GenerateTasksDto {
   @Max(4)
   quarter?: number
 
-  // backward compatibility only (MONTHLY without FY)
   @IsOptional()
   @IsInt()
   @Min(2000)
@@ -28,4 +34,22 @@ export class GenerateTasksDto {
   @IsOptional()
   @IsInt()
   assignedToUserId?: number
+
+  /* 🔥 NEW BILLING OVERRIDE FIELDS */
+
+  @IsOptional()
+  @IsBoolean()
+  isBillable?: boolean
+
+  @IsOptional()
+  @IsString()
+  hsnSac?: string
+
+  @IsOptional()
+  @IsNumber()
+  gstRate?: number
+
+  @IsOptional()
+  @IsString()
+  unitLabel?: string
 }

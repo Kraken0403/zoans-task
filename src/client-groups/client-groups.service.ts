@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { CreateClientGroupDto } from './dto/create-client-group.dto'
 import { UpdateClientGroupDto } from './dto/update-client-group.dto'
+import { Prisma } from '@prisma/client'
 
 @Injectable()
 export class ClientGroupsService {
@@ -57,15 +58,52 @@ export class ClientGroupsService {
   /* ========================
      UPDATE
   ======================== */
-
   async update(id: number, dto: UpdateClientGroupDto) {
+    // 1️⃣ Check if group exists
+    const existing = await this.prisma.clientGroup.findUnique({
+      where: { id },
+    })
+  
+    if (!existing) {
+      throw new BadRequestException('Client group not found')
+    }
+  
+    // 2️⃣ Build OR conditions safely (TypeScript-safe)
+    if (dto.code !== undefined || dto.name !== undefined) {
+      const orConditions: Prisma.ClientGroupWhereInput[] = []
+  
+      if (dto.code !== undefined) {
+        orConditions.push({ code: dto.code })
+      }
+  
+      if (dto.name !== undefined) {
+        orConditions.push({ name: dto.name })
+      }
+  
+      const duplicate = await this.prisma.clientGroup.findFirst({
+        where: {
+          id: { not: id },
+          OR: orConditions,
+        },
+      })
+  
+      if (duplicate) {
+        throw new BadRequestException(
+          'Client group with same code or name already exists',
+        )
+      }
+    }
+  
+    // 3️⃣ Update only provided fields
     return this.prisma.clientGroup.update({
       where: { id },
       data: {
-        name: dto.name,
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.code !== undefined && { code: dto.code }),
       },
     })
   }
+  
 
   /* ========================
      DELETE
@@ -79,7 +117,6 @@ export class ClientGroupsService {
   }
 
   async assignClientsToGroup(groupId: number, clientIds: number[]) {
-    // check group exists
     const group = await this.prisma.clientGroup.findUnique({
       where: { id: groupId },
     })
@@ -88,6 +125,29 @@ export class ClientGroupsService {
       throw new BadRequestException('Client group not found')
     }
   
+    // 1️⃣ Fetch selected clients
+    const clients = await this.prisma.client.findMany({
+      where: {
+        id: { in: clientIds },
+      },
+      select: {
+        id: true,
+        clientGroupId: true,
+      },
+    })
+  
+    // 2️⃣ Find conflicting clients
+    const conflicting = clients.filter(
+      c => c.clientGroupId && c.clientGroupId !== groupId,
+    )
+  
+    if (conflicting.length > 0) {
+      throw new BadRequestException(
+        'One or more clients already belong to another group',
+      )
+    }
+  
+    // 3️⃣ Safe to assign
     await this.prisma.client.updateMany({
       where: {
         id: { in: clientIds },
@@ -99,6 +159,7 @@ export class ClientGroupsService {
   
     return { success: true }
   }
+  
 
   async removeClientsFromGroup(clientIds: number[]) {
     if (!clientIds || !clientIds.length) {

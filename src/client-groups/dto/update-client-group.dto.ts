@@ -4,4 +4,8 @@ export class UpdateClientGroupDto {
   @IsOptional()
   @IsString()
   name?: string
+
+  @IsOptional()
+  @IsString()
+  code?: string
 }

@@ -92,6 +92,16 @@ export class ClientsService {
     })
   }
 
+  async findUngrouped() {
+    return this.prisma.client.findMany({
+      where: {
+        clientGroupId: null,
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+  }
+  
+
   /* ========================
      EXCEL IMPORT
   ======================== */
