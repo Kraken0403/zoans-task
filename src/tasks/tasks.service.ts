@@ -2,11 +2,11 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common'
-import { PrismaService } from '../prisma/prisma.service'
-import { CreateTaskDto } from './dto/create-task.dto'
-import { UpdateTaskDto } from './dto/update-task.dto'
-import { TaskStatus } from '@prisma/client'
+} from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateTaskDto } from './dto/create-task.dto';
+import { UpdateTaskDto } from './dto/update-task.dto';
+import { TaskStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class TasksService {
@@ -24,29 +24,29 @@ export class TasksService {
         dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
         assignedToUserId: dto.assignedToUserId ?? null,
       },
-    })
+    });
   }
 
   // -------------------- LIST / FILTER --------------------
 
   async findAll(filters: {
-    clientId?: number
-    assignedToUserId?: number
-    categoryId?: number
-    status?: string
+    clientId?: number;
+    assignedToUserId?: number;
+    categoryId?: number;
+    status?: string;
   }) {
-    const where: any = {}
+    const where: any = {};
 
     if (filters.clientId) {
-      where.clientId = filters.clientId
+      where.clientId = filters.clientId;
     }
 
     if (filters.assignedToUserId) {
-      where.assignedToUserId = filters.assignedToUserId
+      where.assignedToUserId = filters.assignedToUserId;
     }
 
     if (filters.categoryId) {
-      where.categoryId = filters.categoryId
+      where.categoryId = filters.categoryId;
     }
 
     // 🔥 IMPORTANT: sanitize status
@@ -55,20 +55,27 @@ export class TasksService {
       typeof filters.status === 'string' &&
       filters.status.trim() !== ''
     ) {
-      where.status = filters.status.trim() as TaskStatus
+      where.status = filters.status.trim() as TaskStatus;
     }
 
     return this.prisma.task.findMany({
       where,
-      orderBy: [
-        { dueDate: 'asc' },
-        { createdAt: 'desc' },
-
-      ],
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
       include: {
         client: true,
         category: true,
         assignedToUser: true,
+        invoiceItems: {
+          where: {
+            invoice: {
+              deletedAt: null,
+            },
+          },
+          select: {
+            id: true,
+            invoiceId: true,
+          },
+        },
         assignments: {
           include: {
             user: {
@@ -79,9 +86,9 @@ export class TasksService {
               },
             },
           },
-        }
+        },
       },
-    })
+    });
   }
 
   // -------------------- GET ONE --------------------
@@ -93,17 +100,86 @@ export class TasksService {
         client: true,
         category: true,
         assignedToUser: true,
+        invoiceItems: {
+          where: {
+            invoice: {
+              deletedAt: null,
+            },
+          },
+          select: {
+            id: true,
+            invoiceId: true,
+          },
+        },
         assignments: {
           include: { user: true },
           orderBy: { assignedAt: 'desc' },
         },
       },
-    })
+    });
 
-    if (!task) throw new NotFoundException('Task not found')
-    return task
+    if (!task) throw new NotFoundException('Task not found');
+    return task;
   }
-  
+
+  async findAvailableForInvoice(clientId?: number) {
+    return this.prisma.task.findMany({
+      where: {
+        ...(clientId ? { clientId } : {}),
+        isBillable: true,
+        status: 'COMPLETED',
+        invoiceItems: {
+          none: {
+            invoice: {
+              deletedAt: null,
+            },
+          },
+        },
+      },
+      include: {
+        client: true,
+        taskMaster: true,
+      },
+      orderBy: {
+        id: 'desc',
+      },
+    });
+  }
+
+  async remove(id: number) {
+    const task = await this.prisma.task.findUnique({
+      where: { id },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1️⃣ Delete task assignments first
+      await tx.taskAssignment.deleteMany({
+        where: { taskId: id },
+      });
+
+      // 2️⃣ Delete task
+      return tx.task.delete({
+        where: { id },
+      });
+    });
+  }
+
+  async bulkDelete(ids: number[]) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.taskAssignment.deleteMany({
+        where: { taskId: { in: ids } },
+      });
+
+      return tx.task.deleteMany({
+        where: { id: { in: ids } },
+      });
+    });
+  }
+
   async findByIds(ids: number[]) {
     return this.prisma.task.findMany({
       where: {
@@ -119,16 +195,15 @@ export class TasksService {
           },
         },
       },
-    })
+    });
   }
-  
 
   // -------------------- UPDATE --------------------
 
   async update(id: number, dto: UpdateTaskDto) {
-    const task = await this.prisma.task.findUnique({ where: { id } })
-    if (!task) throw new NotFoundException('Task not found')
-  
+    const task = await this.prisma.task.findUnique({ where: { id } });
+    if (!task) throw new NotFoundException('Task not found');
+
     return this.prisma.$transaction(async (tx) => {
       // 1️⃣ Update task fields
       const updatedTask = await tx.task.update({
@@ -143,40 +218,39 @@ export class TasksService {
             ? { dueDate: dto.dueDate ? new Date(dto.dueDate) : null }
             : {}),
         },
-      })
-  
+      });
+
       // 2️⃣ Replace assignments (if sent)
       if (dto.userIds) {
         await tx.taskAssignment.deleteMany({
           where: { taskId: id },
-        })
-  
+        });
+
         if (dto.userIds.length) {
           await tx.taskAssignment.createMany({
             data: dto.userIds.map((userId) => ({
               taskId: id,
               userId,
             })),
-          })
-  
+          });
+
           // Optional: keep primary assigned user
           await tx.task.update({
             where: { id },
             data: { assignedToUserId: dto.userIds[0] },
-          })
+          });
         }
       }
-  
-      return updatedTask
-    })
+
+      return updatedTask;
+    });
   }
-  
 
   // -------------------- ASSIGNMENT --------------------
 
   async assign(taskId: number, userId: number) {
-    const task = await this.prisma.task.findUnique({ where: { id: taskId } })
-    if (!task) throw new NotFoundException('Task not found')
+    const task = await this.prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) throw new NotFoundException('Task not found');
 
     await this.prisma.$transaction([
       this.prisma.task.update({
@@ -189,14 +263,14 @@ export class TasksService {
           userId,
         },
       }),
-    ])
+    ]);
 
-    return { success: true }
+    return { success: true };
   }
 
   async bulkAssign(taskIds: number[], userId: number) {
     if (!taskIds.length) {
-      throw new BadRequestException('taskIds cannot be empty')
+      throw new BadRequestException('taskIds cannot be empty');
     }
 
     await this.prisma.$transaction([
@@ -210,8 +284,8 @@ export class TasksService {
           userId,
         })),
       }),
-    ])
+    ]);
 
-    return { success: true, count: taskIds.length }
+    return { success: true, count: taskIds.length };
   }
 }

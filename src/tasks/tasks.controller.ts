@@ -8,14 +8,15 @@ import {
   Post,
   Query,
   UseGuards,
-} from '@nestjs/common'
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
-import { TasksService } from './tasks.service'
-import { CreateTaskDto } from './dto/create-task.dto'
-import { UpdateTaskDto } from './dto/update-task.dto'
-import { AssignTaskDto } from './dto/assign-task.dto'
-import { BulkAssignTaskDto } from './dto/bulk-assign-task.dto'
+  Delete,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TasksService } from './tasks.service';
+import { CreateTaskDto } from './dto/create-task.dto';
+import { UpdateTaskDto } from './dto/update-task.dto';
+import { AssignTaskDto } from './dto/assign-task.dto';
+import { BulkAssignTaskDto } from './dto/bulk-assign-task.dto';
 
 @ApiTags('Tasks')
 @ApiBearerAuth('access-token')
@@ -28,7 +29,7 @@ export class TasksController {
 
   @Post()
   create(@Body() dto: CreateTaskDto) {
-    return this.service.create(dto)
+    return this.service.create(dto);
   }
 
   // -------------------- LIST / FILTER --------------------
@@ -45,34 +46,34 @@ export class TasksController {
       assignedToUserId: assignedToUserId ? Number(assignedToUserId) : undefined,
       categoryId: categoryId ? Number(categoryId) : undefined,
       status,
-    })
+    });
   }
 
-    // ✅ MUST COME BEFORE :id
+  // ✅ MUST COME BEFORE :id
   @Get('bulk')
   findByIds(@Query('ids') ids: string) {
-    if (!ids) return []
-    const parsedIds = ids.split(',').map(id => Number(id))
-    return this.service.findByIds(parsedIds)
+    if (!ids) return [];
+    const parsedIds = ids.split(',').map((id) => Number(id));
+    return this.service.findByIds(parsedIds);
   }
 
-    
+  @Get('available-for-invoice')
+  findAvailableForInvoice(@Query('clientId') clientId?: string) {
+    return this.service.findAvailableForInvoice(
+      clientId ? Number(clientId) : undefined,
+    );
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOne(id)
+    return this.service.findOne(id);
   }
-
-
-
 
   // -------------------- UPDATE --------------------
 
   @Patch(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateTaskDto,
-  ) {
-    return this.service.update(id, dto)
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTaskDto) {
+    return this.service.update(id, dto);
   }
 
   // -------------------- ASSIGNMENT --------------------
@@ -82,13 +83,24 @@ export class TasksController {
     @Param('id', ParseIntPipe) taskId: number,
     @Body() dto: AssignTaskDto,
   ) {
-    return this.service.assign(taskId, dto.userId)
+    return this.service.assign(taskId, dto.userId);
   }
 
   @Post('bulk-assign')
   bulkAssign(@Body() dto: BulkAssignTaskDto) {
-    return this.service.bulkAssign(dto.taskIds, dto.userId)
+    return this.service.bulkAssign(dto.taskIds, dto.userId);
   }
 
+  @Delete('bulk')
+  bulkDelete(@Query('ids') ids: string) {
+    if (!ids) return { count: 0 };
 
+    const parsedIds = ids.split(',').map((id) => Number(id));
+    return this.service.bulkDelete(parsedIds);
+  }
+
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.service.remove(id);
+  }
 }

@@ -1,8 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common'
-import { PrismaService } from '../prisma/prisma.service'
-import { CreateClientGroupDto } from './dto/create-client-group.dto'
-import { UpdateClientGroupDto } from './dto/update-client-group.dto'
-import { Prisma } from '@prisma/client'
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateClientGroupDto } from './dto/create-client-group.dto';
+import { UpdateClientGroupDto } from './dto/update-client-group.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class ClientGroupsService {
@@ -17,12 +17,12 @@ export class ClientGroupsService {
       where: {
         OR: [{ code: dto.code }, { name: dto.name }],
       },
-    })
+    });
 
     if (exists) {
       throw new BadRequestException(
         'Client group with same code or name already exists',
-      )
+      );
     }
 
     return this.prisma.clientGroup.create({
@@ -30,7 +30,7 @@ export class ClientGroupsService {
         name: dto.name,
         code: dto.code,
       },
-    })
+    });
   }
 
   /* ========================
@@ -43,7 +43,7 @@ export class ClientGroupsService {
       include: {
         clients: true,
       },
-    })
+    });
   }
 
   async findOne(id: number) {
@@ -52,7 +52,7 @@ export class ClientGroupsService {
       include: {
         clients: true,
       },
-    })
+    });
   }
 
   /* ========================
@@ -62,38 +62,38 @@ export class ClientGroupsService {
     // 1️⃣ Check if group exists
     const existing = await this.prisma.clientGroup.findUnique({
       where: { id },
-    })
-  
+    });
+
     if (!existing) {
-      throw new BadRequestException('Client group not found')
+      throw new BadRequestException('Client group not found');
     }
-  
+
     // 2️⃣ Build OR conditions safely (TypeScript-safe)
     if (dto.code !== undefined || dto.name !== undefined) {
-      const orConditions: Prisma.ClientGroupWhereInput[] = []
-  
+      const orConditions: Prisma.ClientGroupWhereInput[] = [];
+
       if (dto.code !== undefined) {
-        orConditions.push({ code: dto.code })
+        orConditions.push({ code: dto.code });
       }
-  
+
       if (dto.name !== undefined) {
-        orConditions.push({ name: dto.name })
+        orConditions.push({ name: dto.name });
       }
-  
+
       const duplicate = await this.prisma.clientGroup.findFirst({
         where: {
           id: { not: id },
           OR: orConditions,
         },
-      })
-  
+      });
+
       if (duplicate) {
         throw new BadRequestException(
           'Client group with same code or name already exists',
-        )
+        );
       }
     }
-  
+
     // 3️⃣ Update only provided fields
     return this.prisma.clientGroup.update({
       where: { id },
@@ -101,9 +101,8 @@ export class ClientGroupsService {
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.code !== undefined && { code: dto.code }),
       },
-    })
+    });
   }
-  
 
   /* ========================
      DELETE
@@ -113,18 +112,18 @@ export class ClientGroupsService {
     // 🔒 SAFETY: group deletion should NOT delete clients
     return this.prisma.clientGroup.delete({
       where: { id },
-    })
+    });
   }
 
   async assignClientsToGroup(groupId: number, clientIds: number[]) {
     const group = await this.prisma.clientGroup.findUnique({
       where: { id: groupId },
-    })
-  
+    });
+
     if (!group) {
-      throw new BadRequestException('Client group not found')
+      throw new BadRequestException('Client group not found');
     }
-  
+
     // 1️⃣ Fetch selected clients
     const clients = await this.prisma.client.findMany({
       where: {
@@ -134,19 +133,19 @@ export class ClientGroupsService {
         id: true,
         clientGroupId: true,
       },
-    })
-  
+    });
+
     // 2️⃣ Find conflicting clients
     const conflicting = clients.filter(
-      c => c.clientGroupId && c.clientGroupId !== groupId,
-    )
-  
+      (c) => c.clientGroupId && c.clientGroupId !== groupId,
+    );
+
     if (conflicting.length > 0) {
       throw new BadRequestException(
         'One or more clients already belong to another group',
-      )
+      );
     }
-  
+
     // 3️⃣ Safe to assign
     await this.prisma.client.updateMany({
       where: {
@@ -155,17 +154,16 @@ export class ClientGroupsService {
       data: {
         clientGroupId: groupId,
       },
-    })
-  
-    return { success: true }
+    });
+
+    return { success: true };
   }
-  
 
   async removeClientsFromGroup(clientIds: number[]) {
     if (!clientIds || !clientIds.length) {
-      throw new BadRequestException('No clients selected')
+      throw new BadRequestException('No clients selected');
     }
-  
+
     await this.prisma.client.updateMany({
       where: {
         id: { in: clientIds },
@@ -173,10 +171,8 @@ export class ClientGroupsService {
       data: {
         clientGroupId: null,
       },
-    })
-  
-    return { success: true }
+    });
+
+    return { success: true };
   }
-  
-  
 }

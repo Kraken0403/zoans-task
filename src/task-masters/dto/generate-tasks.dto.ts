@@ -6,50 +6,53 @@ import {
   Max,
   IsBoolean,
   IsNumber,
-} from 'class-validator'
+} from 'class-validator';
+
+import { Type } from 'class-transformer';
 
 export class GenerateTasksDto {
   @IsOptional()
   @IsString()
-  financialYear?: string
+  financialYear?: string;
 
   @IsOptional()
   @IsInt()
   @Min(1)
   @Max(12)
-  month?: number
+  month?: number;
 
   @IsOptional()
   @IsInt()
   @Min(1)
   @Max(4)
-  quarter?: number
+  quarter?: number;
 
   @IsOptional()
   @IsInt()
   @Min(2000)
   @Max(2100)
-  year?: number
+  year?: number;
 
   @IsOptional()
   @IsInt()
-  assignedToUserId?: number
+  assignedToUserId?: number;
 
   /* 🔥 NEW BILLING OVERRIDE FIELDS */
 
   @IsOptional()
   @IsBoolean()
-  isBillable?: boolean
+  isBillable?: boolean;
 
   @IsOptional()
   @IsString()
-  hsnSac?: string
+  hsnSac?: string;
 
-  @IsOptional()
+  @Type(() => Number)
   @IsNumber()
-  gstRate?: number
+  @IsOptional()
+  gstRate?: number;
 
   @IsOptional()
   @IsString()
-  unitLabel?: string
+  unitLabel?: string;
 }

@@ -8,10 +8,10 @@ import {
   Delete,
   ParseIntPipe,
   BadRequestException,
-} from '@nestjs/common'
-import { ClientGroupsService } from './client-groups.service'
-import { CreateClientGroupDto } from './dto/create-client-group.dto'
-import { UpdateClientGroupDto } from './dto/update-client-group.dto'
+} from '@nestjs/common';
+import { ClientGroupsService } from './client-groups.service';
+import { CreateClientGroupDto } from './dto/create-client-group.dto';
+import { UpdateClientGroupDto } from './dto/update-client-group.dto';
 
 @Controller('client-groups')
 export class ClientGroupsController {
@@ -23,7 +23,7 @@ export class ClientGroupsController {
 
   @Post()
   create(@Body() dto: CreateClientGroupDto) {
-    return this.service.create(dto)
+    return this.service.create(dto);
   }
 
   /* ========================
@@ -32,12 +32,12 @@ export class ClientGroupsController {
 
   @Get()
   findAll() {
-    return this.service.findAll()
+    return this.service.findAll();
   }
 
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOne(id)
+    return this.service.findOne(id);
   }
 
   /* ========================
@@ -49,7 +49,7 @@ export class ClientGroupsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateClientGroupDto,
   ) {
-    return this.service.update(id, dto)
+    return this.service.update(id, dto);
   }
 
   /* ========================
@@ -58,7 +58,7 @@ export class ClientGroupsController {
 
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
-    return this.service.remove(id)
+    return this.service.remove(id);
   }
 
   /* ========================
@@ -71,13 +71,10 @@ export class ClientGroupsController {
     @Body() body: { clientIds?: number[] },
   ) {
     if (!body?.clientIds?.length) {
-      throw new BadRequestException('No clients selected')
+      throw new BadRequestException('No clients selected');
     }
 
-    return this.service.assignClientsToGroup(
-      id,
-      body.clientIds,
-    )
+    return this.service.assignClientsToGroup(id, body.clientIds);
   }
 
   /* ========================
@@ -90,11 +87,9 @@ export class ClientGroupsController {
     @Body() body: { clientIds?: number[] },
   ) {
     if (!body?.clientIds?.length) {
-      throw new BadRequestException('No clients selected')
+      throw new BadRequestException('No clients selected');
     }
 
-    return this.service.removeClientsFromGroup(
-      body.clientIds,
-    )
+    return this.service.removeClientsFromGroup(body.clientIds);
   }
 }

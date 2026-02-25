@@ -1,19 +1,16 @@
-import { Injectable } from '@nestjs/common'
-import { PrismaService } from '../prisma/prisma.service'
-import {
-  InvoiceStatus,
-  TaskStatus,
-} from '@prisma/client'
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { InvoiceStatus, TaskStatus } from '@prisma/client';
 
 @Injectable()
 export class DashboardService {
   constructor(private prisma: PrismaService) {}
 
   async getSummary(userId: number) {
-    const now = new Date()
+    const now = new Date();
 
-    const next7Days = new Date()
-    next7Days.setDate(now.getDate() + 7)
+    const next7Days = new Date();
+    next7Days.setDate(now.getDate() + 7);
 
     const [
       taskMastersCount,
@@ -25,9 +22,10 @@ export class DashboardService {
       pendingInvoiceAggregate,
       upcomingTasks,
       overdueTasks,
-      statusBreakdown,
+      pendingStatusCount,
+      completedStatusCount,
+      invoicedStatusCount,
     ] = await Promise.all([
-
       /* ===========================
          TOTAL COUNTS
       =========================== */
@@ -42,7 +40,13 @@ export class DashboardService {
 
       this.prisma.client.count(),
 
-      this.prisma.invoice.count(),
+      this.prisma.invoice.count({
+        where: {
+          status: {
+            not: 'CANCELLED',
+          },
+        },
+      }),
 
       /* ===========================
          MY TASKS
@@ -121,33 +125,68 @@ export class DashboardService {
 
       /* ===========================
          STATUS BREAKDOWN
+         (effective status used in UI)
       =========================== */
 
-      this.prisma.task.groupBy({
-        by: ['status'],
-        _count: true,
-        where: { deletedAt: null },
+      this.prisma.task.count({
+        where: {
+          deletedAt: null,
+          status: TaskStatus.PENDING,
+          invoiceItems: {
+            none: {
+              invoice: {
+                deletedAt: null,
+              },
+            },
+          },
+        },
       }),
-    ])
+
+      this.prisma.task.count({
+        where: {
+          deletedAt: null,
+          status: TaskStatus.COMPLETED,
+          invoiceItems: {
+            none: {
+              invoice: {
+                deletedAt: null,
+              },
+            },
+          },
+        },
+      }),
+
+      this.prisma.task.count({
+        where: {
+          deletedAt: null,
+          invoiceItems: {
+            some: {
+              invoice: {
+                deletedAt: null,
+              },
+            },
+          },
+        },
+      }),
+    ]);
 
     /* ===========================
        FORMAT STATUS BREAKDOWN
     =========================== */
 
-    const breakdown: Record<string, number> = {}
-
-    statusBreakdown.forEach(item => {
-      breakdown[item.status] = item._count
-    })
+    const breakdown: Record<string, number> = {
+      PENDING: pendingStatusCount,
+      COMPLETED: completedStatusCount,
+      INVOICED: invoicedStatusCount,
+    };
 
     /* ===========================
        SAFE DECIMAL HANDLING
     =========================== */
 
-    const pendingInvoiceAmount =
-      pendingInvoiceAggregate._sum?.total
-        ? Number(pendingInvoiceAggregate._sum.total)
-        : 0
+    const pendingInvoiceAmount = pendingInvoiceAggregate._sum?.total
+      ? Number(pendingInvoiceAggregate._sum.total)
+      : 0;
 
     return {
       taskMastersCount,
@@ -164,6 +203,6 @@ export class DashboardService {
       overdueTasks,
 
       taskStatusBreakdown: breakdown,
-    }
+    };
   }
 }

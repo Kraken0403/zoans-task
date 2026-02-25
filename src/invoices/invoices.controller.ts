@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
   Param,
   Body,
   Req,
@@ -9,18 +10,18 @@ import {
   Res,
   Patch,
   ParseIntPipe,
-} from '@nestjs/common'
-import { AuthGuard } from '@nestjs/passport'
-import { InvoicesService } from './invoices.service'
-import { CreateInvoiceDto } from './dto/create-invoice.dto'
-import { CreateInvoiceFromTasksDto } from './dto/create-invoice-from-tasks.dto'
-import { InvoicePdfService } from './pdf/invoice-pdf.service'
-import { InvoiceStatus } from '@prisma/client'
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
-import { AddInvoiceItemDto } from './dto/add-invoice-item.dto'
+} from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { InvoicesService } from './invoices.service';
+import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { CreateInvoiceFromTasksDto } from './dto/create-invoice-from-tasks.dto';
+import { InvoicePdfService } from './pdf/invoice-pdf.service';
+import { InvoiceStatus } from '@prisma/client';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { AddInvoiceItemDto } from './dto/add-invoice-item.dto';
 
 @ApiTags('Task Masters')
-@ApiBearerAuth('access-token') 
+@ApiBearerAuth('access-token')
 @UseGuards(AuthGuard('jwt'))
 @Controller('invoices')
 export class InvoicesController {
@@ -35,7 +36,7 @@ export class InvoicesController {
 
   @Post()
   create(@Req() req: any, @Body() dto: CreateInvoiceDto) {
-    return this.svc.create(req.user.id, dto)
+    return this.svc.create(req.user.id, dto);
   }
 
   /* ===========================
@@ -43,11 +44,8 @@ export class InvoicesController {
   =========================== */
 
   @Post('from-tasks')
-  createFromTasks(
-    @Req() req: any,
-    @Body() dto: CreateInvoiceFromTasksDto,
-  ) {
-    return this.svc.createFromTasks(req.user.id, dto)
+  createFromTasks(@Req() req: any, @Body() dto: CreateInvoiceFromTasksDto) {
+    return this.svc.createFromTasks(req.user.id, dto);
   }
 
   /* ===========================
@@ -55,18 +53,15 @@ export class InvoicesController {
   =========================== */
 
   @Post(':id/pdf')
-  async downloadPdf(
-    @Param('id', ParseIntPipe) id: number,
-    @Res() res,
-  ) {
-    const pdf = await this.pdfService.generate(id)
+  async downloadPdf(@Param('id', ParseIntPipe) id: number, @Res() res) {
+    const pdf = await this.pdfService.generate(id);
 
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `inline; filename=invoice-${id}.pdf`,
-    })
+    });
 
-    res.send(pdf)
+    res.send(pdf);
   }
 
   /* ===========================
@@ -75,26 +70,30 @@ export class InvoicesController {
 
   @Get()
   findAll() {
-    return this.svc.findAll()
+    return this.svc.findAll();
   }
 
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.svc.findOne(id)
+    return this.svc.findOne(id);
+  }
+
+  @Delete(':id')
+  delete(@Param('id', ParseIntPipe) id: number) {
+    return this.svc.softDelete(id);
   }
 
   /* ===========================
      ITEMS (MANUAL ADD)
   =========================== */
 
-
   @Post(':id/items')
   addItem(
     @Req() req: any,
     @Param('id') id: string,
-    @Body() dto: AddInvoiceItemDto,   // ✅ typed DTO
+    @Body() dto: AddInvoiceItemDto, // ✅ typed DTO
   ) {
-    return this.svc.addItem(req.user.id, Number(id), dto)
+    return this.svc.addItem(req.user.id, Number(id), dto);
   }
 
   /* ===========================
@@ -106,7 +105,7 @@ export class InvoicesController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: { toEmail: string; subject?: string; message?: string },
   ) {
-    return this.svc.sendInvoice(id, dto)
+    return this.svc.sendInvoice(id, dto);
   }
 
   /* ===========================
@@ -115,7 +114,7 @@ export class InvoicesController {
 
   @Post(':id/recalculate')
   recalculate(@Param('id', ParseIntPipe) id: number) {
-    return this.svc.recalculate(id)
+    return this.svc.recalculate(id);
   }
 
   /* ===========================
@@ -127,6 +126,6 @@ export class InvoicesController {
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: InvoiceStatus,
   ) {
-    return this.svc.updateStatus(id, status)
+    return this.svc.updateStatus(id, status);
   }
 }

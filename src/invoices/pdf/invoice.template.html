@@ -1,246 +1,689 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
+  <meta charset="UTF-8" />
+  <title>Tax Invoice</title>
   <style>
     * {
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 12px;
-    }
-
-    h1, h2, h3, h4, p {
       margin: 0;
       padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 13px;
+      color: #1a1a1a;
+      background: #fff;
+      padding: 1rem;
+    }
+
+    .page {
+      width: 750px;
+      margin: 0 auto;
+      padding: 28px 38px 24px;
+    }
+
+    /* ══════════════════════════
+       HEADER
+    ══════════════════════════ */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 6px;
+      border-bottom: 1.5px solid #c0c0c0;
+      margin-bottom: 12px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-box {
+      width: 64px;
+      height: 64px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      background: #fff;
+    }
+
+    .logo-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .logo-fallback {
+      font-size: 18px;
+      font-weight: 900;
+      color: #1a5276;
+      letter-spacing: -2px;
+    }
+
+    .firm-name {
+      font-size: 21px;
+      font-weight: 800;
+      color: #1a5276;
+      letter-spacing: 0.2px;
+      line-height: 1.15;
+    }
+
+    .firm-tagline {
+      font-size: 12px;
+      color: #666;
+      letter-spacing: 0.3px;
+      margin-top: 3px;
+    }
+
+    .inv-title {
+      font-size: 21px;
+      font-weight: 800;
+      color: #1a5276;
+      letter-spacing: 1.5px;
+      text-align: right;
+    }
+
+    /* ══════════════════════════
+       META
+    ══════════════════════════ */
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #d0d0d0;
+      margin-bottom: 6px;
+    }
+
+    .meta-left {
+      flex: 1;
+      padding-right: 20px;
+    }
+
+    .meta-left .addr {
+      font-size: 13px;
+      color: #2c2c2c;
+      line-height: 1.7;
+    }
+
+    /* Each ID on its own line, label bold */
+    .meta-left .id-line {
+      font-size: 13px;
+      color: #2c2c2c;
+      line-height: 1.85;
+      margin-top: 8px;
+    }
+
+    .meta-left .id-line b {
+      font-weight: 700;
+      color: #111;
+    }
+
+    /* MSME — smaller muted line */
+    .meta-left .msme {
+      font-size: 11.5px;
+      color: #777;
+      line-height: 1.7;
+      margin-top: 2px;
+    }
+
+    .meta-left .msme b {
+      color: #555;
+      font-weight: 600;
+    }
+
+    /* Contact — blue */
+    .meta-left .contact {
+      margin-top: 7px;
+      font-size: 13px;
+      color: #1a5276;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .meta-left .contact .pipe {
+      color: #ccc;
+      font-weight: 300;
+    }
+
+    /* Right: invoice fields */
+    .meta-right {
+      min-width: 275px;
+    }
+
+    .mrow {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 13px;
+      padding: 4px 0;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .mrow:last-child {
+      border-bottom: none;
+    }
+
+    .mkey {
+      color: #555;
+      white-space: nowrap;
+      padding-right: 10px;
+    }
+
+    .mval {
+      font-weight: 600;
+      color: #111;
+      text-align: right;
+    }
+
+    /* ══════════════════════════
+       BILL TO
+    ══════════════════════════ */
+    .billto-wrap {
+      padding-bottom: 6px;
+      margin-bottom: 6px;
+      border-bottom: 1.5px solid #c0c0c0;
+    }
+
+    /* "Bill To:" bold blue — then full-width line below */
+    .billto-label {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: #1a5276;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #d0d0d0;
+      margin-bottom: 8px;
+    }
+
+    .billto-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #111;
+    }
+
+    .billto-addr {
+      font-size: 13px;
+      color: #444;
+      line-height: 1.7;
+      margin-top: 3px;
+    }
+
+    /* GSTIN — bold, on its own line */
+    .billto-gstin {
+      font-size: 13px;
+      font-weight: 700;
+      color: #111;
+      margin-top: 7px;
+    }
+
+    /* State code — only show if meaningful */
+    .billto-state {
+      font-size: 12.5px;
+      color: #555;
+      margin-top: 2px;
+    }
+
+    /* ══════════════════════════
+       ITEMS TABLE
+    ══════════════════════════ */
+    table,
+    th,
+    td {
+      border: 1px solid #c0c0c0;
+      border-collapse: collapse;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 8px;
+      margin-bottom: 0;
     }
 
-    th, td {
-      border: 1px solid #000;
+    thead th {
+      background: #1a5276;
+      color: #fff;
+      font-size: 12.5px;
+      font-weight: 700;
       padding: 6px;
-      vertical-align: top;
+      text-align: left;
     }
 
-    .no-border td {
-      border: none;
+    thead th.c {
+      text-align: center;
     }
 
-    .bordered-box {
-        border: 1px solid #000;
-        padding: 15px 20px;
+    thead th.r {
+      text-align: right;
     }
 
-    .right { text-align: right; }
-    .center { text-align: center; }
+    tbody td {
+      padding: 6px;
+      font-size: 12.5px;
+      color: #111;
+      background-color: #eaf4fb ;
+      border-bottom: 1px solid #e5e5e5;
+      vertical-align: middle;
+    }
 
-    .line {
-      background-color: rgb(94, 94, 94);
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    tbody td.c {
+      text-align: center;
+    }
+
+    tbody td.r {
+      text-align: right;
+    }
+
+    /* Discount cell — "10% | ~~₹ 2,500~~" */
+    .disc-cell {
+      text-align: center;
+      white-space: nowrap;
+      font-size: 12.5px;
+    }
+
+    .disc-pct {
+      color: #444;
+    }
+
+    .disc-sep {
+      color: #ccc;
+      margin: 0 3px;
+    }
+
+    .disc-orig {
+      color: #aaa;
+      text-decoration: line-through;
+    }
+
+    /* ══════════════════════════
+       TOTALS — right aligned
+       Large empty space left, totals right
+    ══════════════════════════ */
+    .totals-wrap {
+      display: flex;
+      justify-content: flex-end;
+      padding: 12px 0 8px;
+      border-bottom: 1px solid #d0d0d0;
+      margin-bottom: 0;
+    }
+
+    .totals {
+      width: 295px;
+    }
+
+    .trow {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 12.5px;
+      padding: 5px 0;
+      border-bottom: 1px solid #e8e8e8;
+    }
+
+    /* Last row = Total — bold, large, border-top */
+    .trow:last-child {
+      border-bottom: 1.5px solid #666;
+      border-top: 1.5px solid #666;
+      padding-top: 6px;
+    }
+
+    .tl {
+      color: #333;
+    }
+
+    .tv {
+      font-weight: 600;
+      color: #111;
+    }
+
+    .trow.grand .tl {
+      font-size: 17px;
+      font-weight: 800;
+      color: #111;
+    }
+
+    .trow.grand .tv {
+      font-size: 20px;
+      font-weight: 900;
+      color: #111;
+    }
+
+    /* ══════════════════════════
+       AMOUNT IN WORDS
+    ══════════════════════════ */
+    .amount-words {
+      text-align: right;
+      font-size: 12.5px;
+      font-style: italic;
+      color: #444;
+      padding: 6px 0 12px;
+      border-bottom: 1px solid #d0d0d0;
+      margin-bottom: 6px;
+    }
+
+    /* ══════════════════════════
+       PAYMENT DUE BY
+    ══════════════════════════ */
+    .payment-due {
+      font-size: 13.5px;
+      color: #1a5276;
+      font-weight: 800;
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #d0d0d0;
+    }
+
+    .payment-due .due-val {
+      color: #111;
+      font-weight: 500;
+    }
+
+    /* ══════════════════════════
+       BANK DETAILS
+    ══════════════════════════ */
+    .bank-section {
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #d0d0d0;
+    }
+
+    .bank-label {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: #1a5276;
+      margin-bottom: 6px;
+    }
+
+    .bank-row {
+      display: flex;
+      font-size: 13px;
+      padding: 2px 0;
+      padding-left: 6px;
+      line-height: 1.8;
+    }
+
+    .bk {
+      color: #555;
+      width: 68px;
+      flex-shrink: 0;
+    }
+
+    .bv {
+      font-weight: 600;
+      color: #111;
+    }
+
+    /* ══════════════════════════
+       SIGNATURE — right only
+    ══════════════════════════ */
+    .sig-section {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 6px;
+    }
+
+    .sig-inner {
+      text-align: center;
+      min-width: 200px;
+    }
+
+    .sig-for {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #222;
+      text-align: right;
+      margin-bottom: 8px;
+    }
+
+    .sig-img {
+      display: block;
+      height: 52px;
+      margin: 0 auto;
+      object-fit: contain;
+    }
+
+    .sig-line {
+      border-top: 1px solid #333;
+      padding-top: 5px;
+      font-size: 12.5px;
+      color: #444;
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    /* ══════════════════════════
+       TERMS
+    ══════════════════════════ */
+    .terms {
+      font-size: 12.5px;
+      color: #444;
+      line-height: 1.9;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #d0d0d0;
+      margin-bottom: 6px;
+    }
+
+    /* ══════════════════════════
+       FOOTNOTE
+    ══════════════════════════ */
+    .footnote {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      font-style: italic;
+      color: #aaa;
+    }
+
+    .footnote::before,
+    .footnote::after {
+      content: '';
+      flex: 1;
       height: 1px;
-      border: 0px;
-      width: 100%;
-      /* color: #000; */
+      background: #ccc;
     }
 
-    .inv-head {
-        display: flex;
+    /* ══════════════════════════
+       PAGE BREAK — keep everything on one page
+    ══════════════════════════ */
+    @media print {
+      body {
+        background: #fff;
+        -webkit-print-color-adjust: exact;
+      }
+
+      /* ✅ Remove border from .page wrapper */
+      .page {
+        border: none !important;
+        padding: 0;
         width: 100%;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 5px;
-    }
+      }
 
-    .inv-title {
-        padding-bottom: 10px;
-    }
+      /* ✅ Each page gets a border via @page margin box trick */
+      @page {
+        margin: 10mm;
+        /* Draw border on every page */
+        border: 1.5px solid #c0c0c0;
+      }
 
-    .comp-box {
-        display: flex;
-        width: 100%;
-    }
-
-    .from-box, .to-box {
-        width: 50%;
-        border: 1px solid #000;
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-    }
-
-    .to-box {
-        border-left: 0px !important;
-    }
-    
-
-    .notes-bank {
-        display: flex;
-        width: 100%;
-    }
-
-    .notes-part, .bank-part {
-        padding: 20px;
-        width: 50%;
-        border: 1px solid #000;
-
-    }
-
-    .bank-part {
-        border-left: 0px!important;
-    }
-
-    .seal-sign {
-        display: flex;
-        width: 100%;
-        margin-top: 10px;
-    }
-
-    .seal, .sign {
-        padding: 20px;
-        width: 50%;
-        border: 1px solid #000;
-    }
-
-    .sign {
-        border-left: 0px!important;
-    }
-
-    .seal img, .sign img {
-        width: 100%;
-    }
-
-    .text-center {
-        text-align: center;
-        margin-top: 5px;
+      /* Never break inside these blocks */
+      .sig-section,
+      .terms,
+      .footnote,
+      .bank-section,
+      .payment-due {
+        page-break-inside: avoid;
+      }
     }
   </style>
 </head>
 
 <body>
+  <div class="page">
 
-<h2 class="inv-title" style="text-align:center">TAX INVOICE</h2>
-
-<div class="bordered-box">
-    <div class="inv-head">
-        <p><b>Invoice No:</b> {{invoiceNumber}}</p>
-        <p><b>Date:</b> {{invoiceDate}}</p>
-    </div>
-    
-    <div class="comp-box">
-        <div class="from-box">
-            <h4>From:</h4>
-            <p>
-                <b>{{companyName}}</b><br />
-                {{companyAddress}}
-            </p>
+    <!-- ══ HEADER ══ -->
+    <div class="header">
+      <div class="header-left">
+        <div class="logo-box">
+          <img src="{{logoUrl}}" alt="{{companyShortName}}"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+          <span class="logo-fallback" style="display:none">{{companyShortName}}</span>
         </div>
-
-        <div class="to-box">
-                
-            <h4>Buyer (Bill To):</h4>
-            <p>
-                <b>{{clientName}}</b><br />
-                {{clientAddress}}
-            </p>
-    
+        <div>
+          <div class="firm-name">{{companyName}}</div>
+          <div class="firm-tagline">{{companyTagline}}</div>
         </div>
+      </div>
+      <div class="inv-title">TAX INVOICE</div>
     </div>
 
+    <!-- ══ META ══ -->
+    <div class="meta">
+      <div class="meta-left">
+        <div class="addr">{{companyAddress}}</div>
+        <div class="id-line"><b>GSTIN:</b> {{companyGSTIN}}</div>
+        <div class="id-line"><b>PAN:</b> {{companyPAN}}</div>
+        <!-- <div class="msme" id="msme-line">
+        <b>MSME No:</b> {{companyMSME}} &nbsp;|&nbsp; <b>Category:</b> {{companyMSMECategory}}
+      </div> -->
+        <div class="contact">
+          <span>✉ {{companyEmail}}</span>
+          <span class="pipe">|</span>
+          <span>{{companyPhone}}</span>
+        </div>
+      </div>
 
+      <div class="meta-right">
+        <div class="mrow">
+          <span class="mkey">Invoice No:</span>
+          <span class="mval">{{invoiceNumber}}</span>
+        </div>
+        <div class="mrow">
+          <span class="mkey">Invoice Date:</span>
+          <span class="mval">{{invoiceDate}}</span>
+        </div>
+        <div class="mrow">
+          <span class="mkey">Due Date:</span>
+          <span class="mval">{{dueDate}}</span>
+        </div>
+        <div class="mrow">
+          <span class="mkey">Place of Supply:</span>
+          <span class="mval">{{placeOfSupply}}</span>
+        </div>
+        <div class="mrow">
+          <span class="mkey">Service Period:</span>
+          <span class="mval">{{servicePeriod}}</span>
+        </div>
+      </div>
+    </div>
 
-    <!-- =======================
-         ITEMS TABLE
-    ======================= -->
+    <!-- ══ BILL TO ══ -->
+    <div class="billto-wrap">
+      <div class="billto-label">Bill To:</div>
+      <div class="billto-name">{{clientName}}</div>
+      <div class="billto-addr">{{clientAddress}}</div>
+      <div class="billto-gstin">GSTIN: {{clientGSTIN}}</div>
+      <!-- <div class="billto-state" id="state-code-line">State Code: {{clientStateCode}}</div> -->
+    </div>
+
+    <!-- ══ ITEMS TABLE ══ -->
     <table>
       <thead>
         <tr>
-          <th>Sl No.</th>
-          <th>Description of Services</th>
-          <th>HSN / SAC</th>
-          <th class="center">Quantity</th>
-          <th class="right">Rate</th>
-          <th class="right">Amount</th>
+          <th style="width:46px">Sr No</th>
+          <th>Description</th>
+          <th class="c" style="width:80px">Task ID</th>
+          <th class="c" style="width:65px">SAC</th>
+          <th class="c" style="width:78px">Period</th>
+          {{discountHeader}}
+          <th class="r" style="width:105px">Net Amount</th>
         </tr>
       </thead>
       <tbody>
         {{items}}
-    
-        <!-- TOTAL ROW -->
-        <tr>
-          <td colspan="5" class="right"><b>Total</b></td>
-          <td class="right"><b>{{grandTotal}}</b></td>
-        </tr>
       </tbody>
     </table>
-    
-    <!-- =======================
-         AMOUNT CHARGEABLE
-    ======================= -->
-    <p style="margin-top:10px">
-      <b>Amount Chargeable (in words):</b><br />
-      <i>{{amountChargeableWords}}</i>
-    </p>
-    
-    <!-- =======================
-         TAX SUMMARY
-    ======================= -->
-    {{taxSummaryTable}}
-    
-    <p style="margin-top:8px">
-      <b>Tax Amount (in words):</b><br />
-      <i>{{taxAmountWords}}</i>
-    </p>
-    
 
-
-    
-    <!-- =======================
-         BANK DETAILS
-    ======================= -->
-    <div class="notes-bank">
-        <div class="notes-part">
-            {{notesBlock}}
-        </div>
-        <div class="bank-part">
-            <h4>Company's Bank Details</h4>
-            <p><b>A/C Holder's Name:</b> {{bankName}}</p>
-            <!-- <p><b>Bank Name:</b> {{bankName}}</p> -->
-            <p><b>A/C No. :</b> {{bankAccount}}</p>
-            <p><b>IFSC Code:</b> {{bankIfsc}}</p>
-        </div>
+    <!-- ══ TOTALS ══ -->
+    <div class="totals-wrap">
+      <div class="totals">
+        {{taxSummaryTable}}
+      </div>
     </div>
 
-
-    
-    <!-- =======================
-         SEAL & SIGNATURE
-    ======================= -->
-    <div class="seal-sign">
-        <div class="seal">
-            <b>Company Seal</b><br />
-            <img
-              src="{{sealUrl}}"
-              alt="Company Seal"
-              style="height:90px; object-fit:contain;"
-            />
-        </div>
-
-        <div class="sign">
-            <b>Authorised Signatory</b><br />
-            <img
-              src="{{signatureUrl}}"
-              alt="Authorised Signature"
-              style="height:70px; object-fit:contain;"
-            />
-        </div>
+    <!-- ══ AMOUNT IN WORDS ══ -->
+    <div class="amount-words">
+      <i>Amount in Words: {{amountChargeableWords}}</i>
     </div>
-</div>
 
-<p class="text-center center">Under the Jurisdication of {{jurisdictionCity}} city</p>
+    <!-- ══ PAYMENT DUE BY ══ -->
+    <div class="payment-due">
+      Payment Due By: <span class="due-val">{{dueDate}}</span>
+    </div>
 
+    <!-- ══ BANK DETAILS ══ -->
+    <div class="bank-section">
+      <div class="bank-label">Bank Details:</div>
+      <div class="bank-row"><span class="bk">Bank:</span><span class="bv">{{bankName}}</span></div>
+      <div class="bank-row"><span class="bk">A/c No:</span><span class="bv">{{bankAccount}}</span></div>
+      <div class="bank-row"><span class="bk">IFSC:</span><span class="bv">{{bankIfsc}}</span></div>
+      <div class="bank-row"><span class="bk">UPI ID:</span><span class="bv">{{bankUpi}}</span></div>
+    </div>
 
+    <!-- ══ SIGNATURE ══ -->
+    <div class="sig-section">
+      <div class="sig-inner">
+        <div class="sig-for">For {{companyName}}</div>
+        <img class="sig-img" src="{{signatureUrl}}" alt="Signature"
+          onerror="this.style.visibility='hidden';this.style.height='40px';" />
+        <div class="sig-line">Authorised Signatory</div>
+      </div>
+    </div>
+
+    <!-- ══ TERMS ══ -->
+    <div class="terms">
+      Payment due within 7 days from <em>invoice date.</em><br />
+      Interest @ 18% p.a. applicable on delayed payments.
+    </div>
+
+    <!-- ══ FOOTNOTE ══ -->
+    <div class="footnote">
+      This is a system-generated invoice and does not require a physical signature.
+    </div>
+
+  </div>
+
+  <script>
+    // Hide MSME line if both are N/A or empty
+    const msme = document.getElementById('msme-line')
+    if (msme) {
+      const t = msme.innerText || ''
+      if (t.includes('N/A') || t.includes('undefined') || t.trim().replace(/[^a-zA-Z0-9]/g, '') === 'MSMENoCategory') {
+        msme.style.display = 'none'
+      }
+    }
+
+    // Hide State Code line if value is "—" or empty
+    const sc = document.getElementById('state-code-line')
+    if (sc) {
+      const t = sc.innerText || ''
+      if (t.includes('—') || t.trim() === 'State Code:' || t.trim() === 'State Code: —') {
+        sc.style.display = 'none'
+      }
+    }
+  </script>
 
 </body>
+
 </html>

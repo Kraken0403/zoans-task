@@ -1,7 +1,7 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common'
-import { PrismaService } from '../prisma/prisma.service'
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
+import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 @Controller('me')
 @UseGuards(JwtAuthGuard)
@@ -15,8 +15,8 @@ export class MeController {
   =========================== */
   @Get('tasks')
   async myTasks(@Req() req) {
-    const userId = req.user.id
-  
+    const userId = req.user.id;
+
     return this.prisma.task.findMany({
       where: {
         assignments: {
@@ -25,10 +25,7 @@ export class MeController {
           },
         },
       },
-      orderBy: [
-        { dueDate: 'asc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
       include: {
         client: true,
         category: true,
@@ -38,14 +35,23 @@ export class MeController {
             title: true,
           },
         },
+        invoiceItems: {
+          where: {
+            invoice: {
+              deletedAt: null,
+            },
+          },
+          select: {
+            id: true,
+            invoiceId: true,
+          },
+        },
         assignments: {
           include: {
             user: true,
           },
         },
       },
-    })
+    });
   }
-  
-  
 }

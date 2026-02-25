@@ -1,25 +1,33 @@
-import { IsArray, IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
+import {
+  IsArray,
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class AssignClientsDto {
   @IsArray()
   @IsInt({ each: true })
-  clientIds: number[]
+  clientIds: number[];
 
   @IsInt()
   @IsOptional()
   @Min(1)
   @Max(31)
-  customDueDay?: number
+  customDueDay?: number;
 
   @IsString()
   @IsOptional()
-  startDate?: string // ISO
+  startDate?: string; // ISO
 
   @IsString()
   @IsOptional()
-  endDate?: string // ISO
+  endDate?: string; // ISO
 
   @IsBoolean()
   @IsOptional()
-  isActive?: boolean
+  isActive?: boolean;
 }

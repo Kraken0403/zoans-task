@@ -5,29 +5,29 @@ import {
   IsDateString,
   IsArray,
   IsInt,
-} from 'class-validator'
-import { TaskStatus } from '@prisma/client'
+} from 'class-validator';
+import { TaskStatus } from '@prisma/client';
 
 export class UpdateTaskDto {
   @IsOptional()
   @IsString()
-  title?: string
+  title?: string;
 
   @IsOptional()
   @IsString()
-  description?: string
+  description?: string;
 
   @IsOptional()
   @IsEnum(TaskStatus)
-  status?: TaskStatus
+  status?: TaskStatus;
 
   @IsOptional()
   @IsDateString()
-  dueDate?: string | null
+  dueDate?: string | null;
 
   // ✅ NEW
   @IsOptional()
   @IsArray()
   @IsInt({ each: true })
-  userIds?: number[]
+  userIds?: number[];
 }

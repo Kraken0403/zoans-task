@@ -1,9 +1,9 @@
-import { IsString } from 'class-validator'
+import { IsString } from 'class-validator';
 
 export class CreateClientGroupDto {
   @IsString()
-  name: string
+  name: string;
 
   @IsString()
-  code: string
+  code: string;
 }

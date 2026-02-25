@@ -1,15 +1,11 @@
 // src/invoices/pdf/invoice-pdf.service.ts
 
-import { Injectable, NotFoundException } from '@nestjs/common'
-import { PrismaService } from '../../prisma/prisma.service'
-import * as puppeteer from 'puppeteer'
-import * as fs from 'fs'
-import * as path from 'path'
-import {
-  formatDate,
-  formatCurrency,
-  amountInWords,
-} from './utils'
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import * as puppeteer from 'puppeteer';
+import * as fs from 'fs';
+import * as path from 'path';
+import { formatDate, formatCurrency, amountInWords } from './utils';
 
 @Injectable()
 export class InvoicePdfService {
@@ -19,201 +15,230 @@ export class InvoicePdfService {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id: invoiceId },
       include: { items: true },
-    })
+    });
 
-    if (!invoice) {
-      throw new NotFoundException('Invoice not found')
-    }
+    if (!invoice) throw new NotFoundException('Invoice not found');
 
-    const html = this.renderTemplate(invoice)
+    const html = this.renderTemplate(invoice);
 
     const browser = await puppeteer.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    })
+    });
 
     try {
-      const page = await browser.newPage()
-      await page.setContent(html, { waitUntil: 'networkidle0' })
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
 
       const pdf = await page.pdf({
         format: 'A4',
         printBackground: true,
-        margin: {
-          top: '20mm',
-          bottom: '20mm',
-          left: '15mm',
-          right: '15mm',
-        },
-      })
+        margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' },
+      });
 
-      return Buffer.from(pdf)
+      return Buffer.from(pdf);
     } finally {
-      await browser.close()
+      await browser.close();
     }
   }
 
-  /* ===========================
+  /* ─────────────────────────────────────────
      TEMPLATE RENDER
-  =========================== */
+  ───────────────────────────────────────── */
   private renderTemplate(invoice: any): string {
     const templatePath = path.join(
       process.cwd(),
       'src/invoices/pdf/invoice.template.html',
-    )
+    );
+    let html = fs.readFileSync(templatePath, 'utf8');
 
-    let html = fs.readFileSync(templatePath, 'utf8')
+    const BASE_URL = process.env.APP_URL;
+    const companyId = invoice.fromCompanyId;
 
-    const BASE_URL = process.env.APP_URL
-    const companyId = invoice.fromCompanyId
+    // ── Asset URLs ────────────────────────────────────────────────
+    const logoUrl = invoice.fromCompanyLogoUrl
+      ? `${BASE_URL}${invoice.fromCompanyLogoUrl}`
+      : '';
+    const signatureUrl = invoice.companySignatureUrl
+      ? `${BASE_URL}${invoice.companySignatureUrl}`
+      : '';
+    const sealUrl = invoice.companySealUrl
+      ? `${BASE_URL}${invoice.companySealUrl}`
+      : '';
 
-    const sealUrl = `${BASE_URL}/uploads/companies/${companyId}/seal.png`
-    const signatureUrl = `${BASE_URL}/uploads/companies/${companyId}/signature.png`
+    // ── Derived numerics ──────────────────────────────────────────
+    const taxableValue = Number(invoice.subtotal);
+    const cgst = Number(invoice.cgstAmount || 0);
+    const sgst = Number(invoice.sgstAmount || 0);
+    const igst = Number(invoice.igstAmount || 0);
+    const totalTax = cgst + sgst + igst;
+    const grandTotal = Number(invoice.total);
+    const hasDiscount = Number(invoice.discount || 0) !== 0;
 
-    const taxableValue = Number(invoice.subtotal)
-    const totalTax =
-      Number(invoice.cgstAmount || 0) +
-      Number(invoice.sgstAmount || 0) +
-      Number(invoice.igstAmount || 0)
+    // ── Company short name / initials fallback ────────────────────
+    const companyShortName: string =
+      invoice.fromCompanyShortName ||
+      (invoice.fromCompanyName as string)
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w: string) => w[0].toUpperCase())
+        .join('');
 
-    /* ===========================
-       NOTES BLOCK (SAFE)
-    =========================== */
-    const notesText =
-    typeof invoice.notes === 'string'
-      ? invoice.notes.trim()
-      : ''
-  
-      const notesBlock = notesText
-        ? `
-          <div style="margin-top:10px;">
-            <h4>Notes</h4>
-            <p>${notesText.replace(/\n/g, '<br />')}</p>
-          </div>
-          
-        `
-        : ` `
-      
-  
+    // ── Service period (auto from task dates or explicit) ─────────
+    const servicePeriod: string =
+      invoice.servicePeriod ||
+      (invoice.serviceFrom && invoice.serviceTo
+        ? `${formatDate(invoice.serviceFrom)} to ${formatDate(invoice.serviceTo)}`
+        : '');
 
-    /* ===========================
+    // ── Due date ──────────────────────────────────────────────────
+    const dueDate: string = invoice.dueDate ? formatDate(invoice.dueDate) : '';
+
+    // ── Client GSTIN — show "Unregistered" if absent ──────────────
+    const clientGSTIN: string = invoice.clientGSTIN?.trim() || 'Unregistered';
+
+    // ── Client state code — first 2 digits of GSTIN or explicit ──
+    const clientStateCode: string =
+      invoice.clientStateCode ||
+      (clientGSTIN !== 'Unregistered' ? clientGSTIN.slice(0, 2) : '—');
+
+    // ── Jurisdiction city ─────────────────────────────────────────
+    const jurisdictionCity: string =
+      invoice.fromCompanyCity ||
+      (invoice.fromCompanyAddress as string)
+        ?.split(',')
+        .slice(-2, -1)[0]
+        ?.trim() ||
+      'Ahmedabad';
+
+    /* ─────────────────────────────────────────
        BASIC REPLACEMENTS
-    =========================== */
+    ───────────────────────────────────────── */
     const replacements: Record<string, string> = {
+      // Header
+      '{{logoUrl}}': logoUrl,
+      '{{companyShortName}}': companyShortName,
+      '{{companyName}}': invoice.fromCompanyName,
+      '{{companyTagline}}': invoice.fromCompanyTagline || '',
+
+      // Firm details (meta-left)
+      '{{companyAddress}}': invoice.fromCompanyAddress,
+      '{{companyGSTIN}}': invoice.fromCompanyGstin || '',
+      '{{companyPAN}}': invoice.fromCompanyPan || '',
+      '{{companyMSME}}': invoice.fromCompanyMsme || 'N/A',
+      '{{companyMSMECategory}}': invoice.fromCompanyMsmeCategory || 'N/A',
+      '{{companyEmail}}': invoice.fromCompanyEmail || '',
+      '{{companyPhone}}': invoice.fromCompanyPhone || '',
+
+      // Invoice meta (meta-right)
       '{{invoiceNumber}}': invoice.invoiceNumber,
       '{{invoiceDate}}': formatDate(invoice.createdAt),
+      '{{dueDate}}': dueDate,
+      '{{placeOfSupply}}': invoice.fromCompanyState || '',
+      '{{servicePeriod}}': servicePeriod,
 
-      '{{companyName}}': invoice.fromCompanyName,
-      '{{companyAddress}}': invoice.fromCompanyAddress,
-
+      // Client
       '{{clientName}}': invoice.clientName,
       '{{clientAddress}}': invoice.clientAddress || '',
+      '{{clientGSTIN}}': clientGSTIN,
+      '{{clientStateCode}}': clientStateCode,
 
-      '{{grandTotal}}': formatCurrency(invoice.total),
+      // Words
+      '{{amountChargeableWords}}': amountInWords(grandTotal),
 
-      '{{amountChargeableWords}}': amountInWords(Number(invoice.total)),
-      '{{taxAmountWords}}': amountInWords(totalTax),
-
+      // Bank
       '{{bankName}}': invoice.bankName || '',
       '{{bankAccount}}': invoice.bankAccount || '',
       '{{bankIfsc}}': invoice.bankIfsc || '',
+      '{{bankUpi}}': invoice.bankUpi || '',
 
-      '{{sealUrl}}': sealUrl,
+      // Assets & footer
       '{{signatureUrl}}': signatureUrl,
-
-      '{{notesBlock}}': notesBlock,
-
-      '{{jurisdictionCity}}':
-      invoice.fromCompanyCity ||
-      invoice.fromCompanyAddress?.split(',').slice(-2, -1)[0]?.trim() ||
-      '',
-    
-      
-    }
+      '{{sealUrl}}': sealUrl,
+      '{{jurisdictionCity}}': jurisdictionCity,
+      '{{discountHeader}}': hasDiscount
+        ? '<th class="c" style="width:100px">Discount</th>'
+        : '',
+    };
 
     for (const key in replacements) {
-      html = html.replace(new RegExp(key, 'g'), replacements[key])
+      html = html.replace(
+        new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'),
+        replacements[key],
+      );
     }
 
-    /* ===========================
-       ITEMS TABLE
-    =========================== */
-    const itemsHtml = invoice.items
-      .map(
-        (i, idx) => `
-        <tr>
-          <td class="center">${idx + 1}</td>
-          <td>${i.title}</td>
-          <td class="center">${i.hsnSac || ''}</td>
-          <td class="center">${i.quantity}</td>
-          <td class="right">${formatCurrency(i.unitPrice)}</td>
-          <td class="right">${formatCurrency(i.amount)}</td>
-        </tr>
-      `,
-      )
-      .join('')
+    /* ─────────────────────────────────────────
+       ITEMS TABLE ROWS
+       Sr No | Description | Task ID | SAC | Period | Discount | Net Amount
+    ───────────────────────────────────────── */
+    const itemsHtml = (invoice.items as any[])
+      .map((item, idx) => {
+        const discountCellHtml = hasDiscount
+          ? `<td class="disc-cell">₹ ${formatCurrency(invoice.discount)}</td>`
+          : '';
 
-    /* ===========================
-       TAX SUMMARY TABLE (DYNAMIC)
-    =========================== */
-    let taxSummaryTable = ''
+        return `
+          <tr>
+            <td class="c">${idx + 1}</td>
+            <td>${item.title || item.description || ''}</td>
+            <td class="c" style="font-size:11.5px;color:#666">${item.taskId || ''}</td>
+            <td class="c">${item.hsnSac || ''}</td>
+            <td class="c">${item.period || ''}</td>
+            ${discountCellHtml}
+            <td class="r">₹ ${formatCurrency(item.amount)}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    /* ─────────────────────────────────────────
+       TOTALS BLOCK
+       Taxable Value
+       CGST @ x% / SGST @ x%   OR   IGST @ x%
+       ─────────────────────────── (border-top)
+       Total                    ₹ xx,xxx  (large)
+    ───────────────────────────────────────── */
+    let taxRows = '';
 
     if (invoice.isIntraState) {
-      const halfRate = Number(invoice.gstPercent) / 2
-
-      taxSummaryTable = `
-      <h4>Tax Summary</h4>
-      <table>
-        <thead>
-          <tr>
-            <th>Taxable Value</th>
-            <th>CGST %</th>
-            <th>CGST Amt</th>
-            <th>SGST %</th>
-            <th>SGST Amt</th>
-            <th>Total Tax</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="right">${formatCurrency(taxableValue)}</td>
-            <td class="center">${halfRate}%</td>
-            <td class="right">${formatCurrency(invoice.cgstAmount)}</td>
-            <td class="center">${halfRate}%</td>
-            <td class="right">${formatCurrency(invoice.sgstAmount)}</td>
-            <td class="right">${formatCurrency(totalTax)}</td>
-          </tr>
-        </tbody>
-      </table>
-      `
+      const halfRate = Number(invoice.gstPercent) / 2;
+      taxRows = `
+        <div class="trow">
+          <span class="tl">CGST @ ${halfRate}%</span>
+          <span class="tv">₹ ${formatCurrency(cgst)}</span>
+        </div>
+        <div class="trow">
+          <span class="tl">SGST @ ${halfRate}%</span>
+          <span class="tv">₹ ${formatCurrency(sgst)}</span>
+        </div>
+      `;
     } else {
-      taxSummaryTable = `
-      <h4>Tax Summary</h4>
-      <table>
-        <thead>
-          <tr>
-            <th>Taxable Value</th>
-            <th>IGST %</th>
-            <th>IGST Amt</th>
-            <th>Total Tax</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="right">${formatCurrency(taxableValue)}</td>
-            <td class="center">${invoice.gstPercent}%</td>
-            <td class="right">${formatCurrency(invoice.igstAmount)}</td>
-            <td class="right">${formatCurrency(totalTax)}</td>
-          </tr>
-        </tbody>
-      </table>
-      `
+      taxRows = `
+        <div class="trow">
+          <span class="tl">IGST @ ${invoice.gstPercent}%</span>
+          <span class="tv">₹ ${formatCurrency(igst)}</span>
+        </div>
+      `;
     }
+
+    const taxSummaryTable = `
+      <div class="trow">
+        <span class="tl">Taxable Value</span>
+        <span class="tv">₹ ${formatCurrency(taxableValue)}</span>
+      </div>
+      ${taxRows}
+      <div class="trow grand">
+        <span class="tl">Total</span>
+        <span class="tv">₹ ${formatCurrency(grandTotal)}</span>
+      </div>
+    `;
 
     html = html
       .replace('{{items}}', itemsHtml)
-      .replace('{{taxSummaryTable}}', taxSummaryTable)
+      .replace('{{taxSummaryTable}}', taxSummaryTable);
 
-    return html
+    return html;
   }
 }

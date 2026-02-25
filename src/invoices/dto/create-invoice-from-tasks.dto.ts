@@ -7,69 +7,86 @@ import {
   IsBoolean,
   IsObject,
   IsString,
-} from 'class-validator'
-import { Type } from 'class-transformer'
-import { GstPricingMode } from './create-invoice.dto'
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { GstPricingMode } from './create-invoice.dto';
 
 export class CreateInvoiceFromTasksDto {
   @IsInt()
-  clientId: number
+  clientId: number;
 
   @IsInt()
-  fromCompanyId: number
+  fromCompanyId: number;
 
   @IsArray()
   @IsInt({ each: true })
-  taskIds: number[]
+  taskIds: number[];
 
   // ✅ ADD THIS (CRITICAL)
+  @IsOptional()
   @IsObject()
-  taskPriceMap: Record<number, number>
+  taskPriceMap?: Record<number, number>;
   // Example: { "12": 5000, "15": 12000 }
 
   @IsOptional()
   @IsEnum(GstPricingMode)
-  pricingMode?: GstPricingMode = GstPricingMode.EXCLUSIVE
+  pricingMode?: GstPricingMode = GstPricingMode.EXCLUSIVE;
 
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
-  gstPercent?: number = 18
+  gstPercent?: number = 18;
 
   @IsOptional()
   @IsBoolean()
-  isIntraState?: boolean = true
-
-  @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  discount?: number = 0
-
-  @IsOptional()
-  @IsBoolean()
-  isManualTotal?: boolean = false
-
-  @IsOptional()
-  @IsNumber()
-  subtotal?: number
-
-  @IsOptional()
-  @IsNumber()
-  cgstAmount?: number
-
-  @IsOptional()
-  @IsNumber()
-  sgstAmount?: number
-
-  @IsOptional()
-  @IsNumber()
-  igstAmount?: number
-
-  @IsOptional()
-  @IsNumber()
-  total?: number
+  isIntraState?: boolean = true;
 
   @IsOptional()
   @IsString()
-  notes?: string
+  placeOfSupply?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  discount?: number = 0;
+
+  @IsOptional()
+  @IsBoolean()
+  isManualTotal?: boolean = false;
+
+  @IsOptional()
+  @IsNumber()
+  subtotal?: number;
+
+  @IsOptional()
+  @IsNumber()
+  cgstAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  sgstAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  igstAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  total?: number;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @IsOptional()
+  @Type(() => Date)
+  dueDate?: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  serviceFrom?: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  serviceTo?: Date;
 }

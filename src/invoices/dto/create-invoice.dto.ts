@@ -8,8 +8,8 @@ import {
   IsArray,
   ValidateNested,
   Min,
-} from 'class-validator'
-import { Type } from 'class-transformer'
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export enum GstPricingMode {
   EXCLUSIVE = 'EXCLUSIVE',
@@ -18,95 +18,106 @@ export enum GstPricingMode {
 
 export class InvoiceItemDto {
   @IsString()
-  title: string
+  title: string;
 
   @IsOptional()
   @IsString()
-  description?: string
+  description?: string;
 
   @IsOptional()
   @IsString()
-  hsnSac?: string
+  hsnSac?: string;
 
   @IsOptional()
   @IsInt()
-  taskId?: number
+  taskId?: number;
 
   @IsOptional()
   @IsInt()
   @Min(1)
-  quantity?: number = 1
+  quantity?: number = 1;
 
   @IsNumber()
   @Type(() => Number)
-  unitPrice: number
+  unitPrice: number;
 }
 
 export class CreateInvoiceDto {
   @IsInt()
-  clientId: number
+  clientId: number;
 
   @IsInt()
-  fromCompanyId: number
+  fromCompanyId: number;
 
   @IsOptional()
   @IsString()
-  placeOfSupply?: string
+  placeOfSupply?: string;
 
   @IsOptional()
   @IsEnum(GstPricingMode)
-  pricingMode?: GstPricingMode = GstPricingMode.EXCLUSIVE
+  pricingMode?: GstPricingMode = GstPricingMode.EXCLUSIVE;
 
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
-  gstPercent?: number = 18
+  gstPercent?: number = 18;
 
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
-  discount?: number = 0
+  discount?: number = 0;
 
   @IsOptional()
   @IsBoolean()
-  isManualTotal?: boolean = false
+  isManualTotal?: boolean = false;
 
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
-  subtotal?: number
+  subtotal?: number;
 
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
-  cgstAmount?: number
+  cgstAmount?: number;
 
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
-  sgstAmount?: number
+  sgstAmount?: number;
 
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
-  igstAmount?: number
+  igstAmount?: number;
 
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
-  total?: number
+  total?: number;
 
   @IsOptional()
   @IsString()
-  notes?: string
+  notes?: string;
+
+  @IsOptional()
+  @Type(() => Date)
+  dueDate?: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  serviceFrom?: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  serviceTo?: Date;
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => InvoiceItemDto)
-  items: InvoiceItemDto[]
+  items: InvoiceItemDto[];
 
   @IsOptional()
   @IsString()
-  sourceType?: 'MANUAL' | 'TASKS'
-
+  sourceType?: 'MANUAL' | 'TASKS';
 }

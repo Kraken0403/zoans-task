@@ -1,10 +1,10 @@
-import { IsArray, IsInt } from 'class-validator'
+import { IsArray, IsInt } from 'class-validator';
 
 export class BulkAssignTaskDto {
   @IsArray()
   @IsInt({ each: true })
-  taskIds: number[]
+  taskIds: number[];
 
   @IsInt()
-  userId: number
+  userId: number;
 }

@@ -1,25 +1,25 @@
-import { IsInt, IsOptional, IsString } from 'class-validator'
+import { IsInt, IsOptional, IsString } from 'class-validator';
 
 export class CreateTaskDto {
   @IsString()
-  title: string
+  title: string;
 
   @IsString()
   @IsOptional()
-  description?: string
+  description?: string;
 
   @IsInt()
-  clientId: number
+  clientId: number;
 
   @IsInt()
   @IsOptional()
-  categoryId?: number
+  categoryId?: number;
 
   @IsString()
   @IsOptional()
-  dueDate?: string // ISO
+  dueDate?: string; // ISO
 
   @IsInt()
   @IsOptional()
-  assignedToUserId?: number
+  assignedToUserId?: number;
 }

@@ -1,54 +1,52 @@
-import {
-  IsOptional,
-  IsString,
-  IsEmail,
-  IsInt
-} from 'class-validator'
+import { IsOptional, IsString, IsEmail, IsInt } from 'class-validator';
 
 export class CreateClientDto {
   @IsString()
-  code: string   // ✅ REQUIRED (client code)
+  code: string; // ✅ REQUIRED (client code)
 
   @IsString()
-  name: string
+  name: string;
 
   @IsOptional()
   @IsEmail()
-  email?: string
+  email?: string;
 
   @IsOptional()
   @IsString()
-  phone?: string
+  phone?: string;
 
   // 🔥 Structured Address (matches Prisma model)
 
   @IsOptional()
   @IsString()
-  addressLine1?: string
+  addressLine1?: string;
 
   @IsOptional()
   @IsString()
-  addressLine2?: string
+  addressLine2?: string;
 
   @IsOptional()
   @IsString()
-  city?: string
+  city?: string;
 
   @IsOptional()
   @IsString()
-  state?: string
+  state?: string;
 
   @IsOptional()
   @IsString()
-  pincode?: string
+  stateCode?: string;
+
+  @IsOptional()
+  @IsString()
+  pincode?: string;
 
   // GST
   @IsOptional()
   @IsString()
-  gstNumber?: string
+  gstNumber?: string;
 
   @IsOptional()
   @IsInt()
-  clientGroupId?: number
-
+  clientGroupId?: number;
 }
